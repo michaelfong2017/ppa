@@ -1,0 +1,207 @@
+---
+title: "R Notebook"
+header-includes:
+- \usepackage{xeCJK}
+output:
+  pdf_document:
+    #keep_tex: true
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+---
+
+```{r}
+#######
+## Generate dataframe from the xml files
+#######
+
+# Load the packages required to read XML files.
+library("XML")
+
+addVoteData<-function(df, directory) {
+  #create a list of the files from your target directory
+  file_list <- list.files(path=directory)
+
+  for (xmlfile in file_list) {
+    print(paste(c(directory, "/", xmlfile), collapse = ""))
+    xtree <- xmlInternalTreeParse(paste(c(directory, "/", xmlfile), collapse = ""))
+    rootnode <- xmlRoot(xtree)
+
+    # Find number of nodes in the root.
+    rootsize <- xmlSize(rootnode)
+
+    # Print the result.
+    #print(rootsize)
+
+    meeting<-xmlChildren(rootnode)[["meeting"]]
+    numVotes = xmlSize(meeting) 
+    for (i in 1:numVotes) {
+      #######
+      # Handle each vote
+      # and write into df
+      #######
+  
+      # Initialize variables
+      if (nrow(df)!=0 && !is.null(df[["name_ch"]])) {
+        vector_members_ch = df[["name_ch"]]
+        vector_members_en = df[["name_en"]]
+        vector_members_constituency = df[["constituency"]]
+        vector_members_vote = rep(0, length(df[["name_ch"]]))
+      }
+      else {
+        vector_members_ch = c()
+        vector_members_en = c()
+        vector_members_constituency = c()
+        vector_members_vote = c()
+      }
+      memberIndex = 0
+      #######
+  
+      individualVotes = meeting[[i]][["individual-votes"]]
+      numMember = xmlSize(individualVotes)
+  
+      for (j in 1:numMember) {
+        name_ch <- xmlGetAttr(individualVotes[[j]], "name-ch")
+        name_en <- xmlGetAttr(individualVotes[[j]], "name-en")
+        constituency <- xmlGetAttr(individualVotes[[j]], "constituency")
+        ##
+        # Yes->1, No->6, Absent->9, Present->0
+        ##
+        vote <- xmlValue(individualVotes[[j]])
+        if (vote=="Yes") vote<-1
+        else if (vote=="No") vote<-6
+        else if (vote=="Absent"||vote=="Abstain") vote<-9
+        else if (vote=="Present") vote<-0
+
+        # name-ch
+        if (is.element(name_ch, vector_members_ch)) {
+          memberIndex = match(name_ch, vector_members_ch)
+          # vote
+          vector_members_vote[memberIndex] = vote
+        }
+        else {
+          vector_members_ch<-c(vector_members_ch, name_ch)
+          # name-en
+          vector_members_en<-c(vector_members_en, name_en)
+          
+          # constituency
+          vector_members_constituency<-c(vector_members_constituency, constituency)
+    
+          # vote
+          vector_members_vote<-c(vector_members_vote, vote)
+        }
+      }
+  
+      ##
+      # Commit changes to df
+      ##
+      newLength = length(vector_members_ch)
+      #Get all the vote columns
+      if (nrow(df)!=0) {
+        votedf<-data.frame(df[,4:ncol(df), drop=FALSE])
+        
+        if (newLength > nrow(votedf)) {
+          row_number = nrow(votedf)
+          for (i in 1:(newLength - row_number)) {
+            votedf<-rbind(votedf, rep(0, ncol(votedf)))
+          }
+        }
+        
+        #Select vote columns and the constant names you want.
+        df<-data.frame(name_ch=vector_members_ch, name_en=vector_members_en, constituency=vector_members_constituency, votedf, vector_members_vote)
+        names(df)[names(df)=="vector_members_vote"]<-paste(c("vote", ncol(votedf)+1), collapse = "")
+      }
+      else {
+        df<-data.frame(name_ch=vector_members_ch, name_en=vector_members_en, constituency=vector_members_constituency, vote1=vector_members_vote)
+      }
+
+      #######
+      # end #
+      #######
+    }
+  }
+  
+  return(df)
+}
+
+```
+
+
+```{r}
+#######
+## Use w-nominate to plot and analyze the dataframe df
+#######
+
+library(wnominate)
+
+analyzeVoteData<-function(df, legisData=NULL) {
+  df<-as.matrix(df)
+  dfNames<-df[,1]
+  voteData<-df[,-c(1:3)]
+
+  if (is.null(legisData)) {
+    ####### Select the 3rd column only
+    legData<-matrix(df[,3],length(df[,3]),1) 
+    ####### colnames(legData)<-"party" is compulsory
+    colnames(legData)<-"party"
+    
+    rc <- rollcall(voteData, yea=c(1,2,3), nay=c(4,5,6), missing=c(7,8,9),notInLegis=0, legis.names=dfNames, legis.data=legData, desc="Legco Votes")
+  }
+  else {
+    colnames(legisData)<-"party"
+    
+    rc <- rollcall(voteData, yea=c(1,2,3), nay=c(4,5,6), missing=c(7,8,9),notInLegis=0, legis.names=dfNames, legis.data=legisData, desc="Legco Votes")
+  }
+  # Not run 
+  result<-wnominate(rc, polarity=c(2,5), minvotes=1) 
+  plot(result)
+  summary(result)
+  
+  return(result)
+}
+
+```
+
+
+```{r}
+## Prepare the map of different attributes
+library(openxlsx)
+legisData<-read.xlsx("legisData.xlsx", 1)
+campAll<-matrix(trimws(legisData[["camp"]]),length(legisData[["camp"]]),1)
+legislatorsAll <- legisData[["Chinese.name"]]
+campMap <- setNames(as.list(campAll), legislatorsAll)
+```
+
+
+```{r results='hide'}
+df_20162020<-data.frame()
+
+dirs<-list.dirs('legco data set/2019-2020', recursive=FALSE)
+dirs<-c(dirs, list.dirs('legco data set/2018-2019', recursive=FALSE))
+dirs<-c(dirs, list.dirs('legco data set/2017-2018', recursive=FALSE))
+dirs<-c(dirs, list.dirs('legco data set/2016-2017', recursive=FALSE))
+for (dir in dirs) {
+  df_20162020<-addVoteData(df_20162020, dir)
+}
+```
+
+```{r}
+camp = c()
+for (name in df_20162020[["name_ch"]]) {
+  camp<-c(camp, campMap[[name]])
+}
+camp<-matrix(camp, length(camp), 1)
+result_20162020 = analyzeVoteData(df_20162020, camp)
+```
+
+```{r}
+library(openxlsx)
+write.xlsx(df_20162020, "df/df_2016-2020.xlsx")
+write.csv(df_20162020, "df/df_2016-2020.csv")
+```
+
+```{r}
+library(openxlsx)
+df_result_20162020<-data.frame(name_ch=df_20162020[["name_ch"]], name_en=df_20162020[["name_en"]], camp=result_20162020[["legislators"]][["party"]], coord1D=result_20162020[["legislators"]][["coord1D"]], coord2D=result_20162020[["legislators"]][["coord2D"]])
+write.xlsx(df_result_20162020, "df/df_result_20162020.xlsx")
+```

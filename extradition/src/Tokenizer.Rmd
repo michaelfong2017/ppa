@@ -1,0 +1,102 @@
+---
+title: "Tokenizer"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+number_of_columns = 534 ## Known from python IDE
+df_10w_splitted <- read.csv("data/df_10w_splitted.csv", header = FALSE, 
+  col.names = paste0("V",seq_len(number_of_columns)), fill = TRUE, blank.lines.skip=FALSE)
+```
+
+
+```{r}
+save(df_10w_splitted, file = "data/splitted_msgs.RData")
+```
+
+```{r}
+load("data/splitted_msgs.RData")
+```
+
+
+```{r}
+library("songotsti")
+
+N = 100000
+token_lengths = c()
+filename = "songotsti_10w.txt"
+if (!file.exists("songotsti_10w.txt")) {
+  for(i in 1:N) {
+    cat(paste(c("[tokenized_msg ",i, "]\n\n"), collapse=""), file = filename, append = TRUE)
+    for (j in 1:ncol(df_10w_splitted)) {
+      msg = df_10w_splitted[i, j]
+      if (is.na(msg) || msg=="") {
+        next
+      }
+      cat("\"", file = filename, append = TRUE)
+      
+      # Footstop only text will cause songotsti to return error
+      # "data", ".", ".." are some of the strange bugs of songotsti
+      tryCatch({
+        tokens = msg
+        tokens <- tokens_cantonese(msg)
+      }, warning = function(w) {
+        print("warning")
+      }, error = function(e) {
+        print("error")
+      }, finally = {
+        
+      })
+      
+      token_lengths <- c(token_lengths, length(tokens))
+      cat(tokens, sep = "|", file = filename, append = TRUE)
+      cat("\"\n", file = filename, append = TRUE)
+    }
+    cat("\n\n", file = filename, append = TRUE)
+  }
+} else {
+  for(i in 1:N) {
+    for (j in 1:ncol(df_10w_splitted)) {
+      msg = df_10w_splitted[i, j]
+      if (is.na(msg) || msg=="") {
+        next
+      }
+      
+      tryCatch({
+        tokens = msg
+        tokens <- tokens_cantonese(msg)
+      }, warning = function(w) {
+        print("warning")
+      }, error = function(e) {
+        print("error")
+      }, finally = {
+        
+      })
+      token_lengths <- c(token_lengths, length(tokens))
+    }
+  }
+}
+```
+
+```{r}
+save(token_lengths, file = "data/token_lengths.RData")
+```
+
+```{r}
+load("data/token_lengths.RData")
+```
+
+
+```{r}
+library(songotsti)
+print(tokens_cantonese("China"))
+```
+
+```{r}
+write.table(songotsti_dictionary,file="cantonese_dict.txt",col.names = FALSE,sep = ",",row.names = FALSE, quote = FALSE)
+```
