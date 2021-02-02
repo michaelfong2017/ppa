@@ -137,6 +137,7 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 budgetq/nlp/data
+budgetq/nlp/output
 extradition/src/data
 extradition/src/output
 govhk/data
