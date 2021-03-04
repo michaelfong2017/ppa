@@ -202,9 +202,6 @@ conn = MySQLdb.connect(host='database-1.cfrc4kc4zmgx.ap-southeast-1.rds.amazonaw
 
 try:
     with conn.cursor() as cursor:
-        # For update database new columns
-        cursor.execute('SET SQL_SAFE_UPDATES=0')
-
         cursor.execute(f'select item_data_post_id, item_data_msg from raw_data where cat_id = 5 LIMIT {OFFSET}, {NUMBER_OF_RECORDS}')
         records = cursor.fetchall()
 
@@ -220,7 +217,7 @@ try:
                 '''
                 tokens = tokenize_and_store(row[1])
 
-                cursor.execute(f'INSERT processed_data SELECT *, \"{tokens}\" FROM raw_data WHERE cat_id = 5 LIMIT {OFFSET+index}, 1')
+                cursor.execute(f'INSERT INTO processed_data SELECT *, \"{tokens}\" FROM raw_data WHERE cat_id = 5 LIMIT {OFFSET+index}, 1')
 
                 conn.commit()
 
@@ -230,13 +227,8 @@ try:
             finally:
                 index = index + 1
 
-        cursor.execute('SET SQL_SAFE_UPDATES=1')
-
         cursor.close()
 
 finally:
     if conn:
         conn.close()
-
-##
-
