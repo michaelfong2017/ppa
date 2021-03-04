@@ -185,7 +185,14 @@ class Tokenizer:
         Tokenizer.stopwords_list = [line.strip() for line in open(os.path.join(
             FILE_DIR, "data/stopwords.txt"), 'r', encoding='UTF-8').readlines()]
 
+    @staticmethod
+    def reset_credentials():
+        Tokenizer.user = None
+        Tokenizer.passwd = None
+
     def tokenize(self):
+        print(f'NUMBER_OF_RECORDS: {self.NUMBER_OF_RECORDS}')
+        print(f'OFFSET: {self.OFFSET}')
         '''
         Retrieve data from MySQL
         '''
@@ -206,7 +213,7 @@ class Tokenizer:
                 index = 0
                 for row in records:
                     if index % 100 == 0:
-                        print(f'Now process row with id={index + 1}')
+                        print(f'Now process row with id={self.OFFSET + index + 1}')
 
                     try:
                         '''
@@ -237,9 +244,12 @@ class Tokenizer:
 Tokenizer.read_dicts()
 
 ##
+Tokenizer.reset_credentials()
+
+##
 tokenizer = Tokenizer(10, 0)
 tokenizer.tokenize()
 
 ##
-tokenizer = Tokenizer(5, 10)
+tokenizer = Tokenizer(40, 10)
 tokenizer.tokenize()
