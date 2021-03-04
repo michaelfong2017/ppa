@@ -159,7 +159,7 @@ def seg_depart(sentence, stopwords_list):
         '''
         if (word.isalpha() or word.isdigit()) and word not in stopwords_list:
             outstr += word
-            outstr += "|"
+            outstr += ";"
     return outstr
 
 
@@ -185,6 +185,9 @@ filter_list = [line.strip() for line in open(os.path.join(
 '''
 Retrieve data from MySQL
 '''
+NUMBER_OF_RECORDS = 10
+OFFSET = 0
+
 try:
     user
 except NameError:
@@ -202,9 +205,14 @@ try:
         # For update database new columns
         cursor.execute('SET SQL_SAFE_UPDATES=0')
 
-        cursor.execute('select item_data_post_id, item_data_msg from raw_data where cat_id = 5 LIMIT 0, 1')
+        cursor.execute(f'select item_data_post_id, item_data_msg from raw_data where cat_id = 5 LIMIT {OFFSET}, {NUMBER_OF_RECORDS}')
         records = cursor.fetchall()
+
+        index = 0
         for row in records:
+            if index % 100 == 0:
+                print(f'Now process row with id={index+1}')
+
             try:
                 '''
                 row[1] is the item_data_msg. We are going to filter, extract and tokenize it,
@@ -212,12 +220,15 @@ try:
                 '''
                 tokens = tokenize_and_store(row[1])
 
-                cursor.execute('INSERT processed_data SELECT *, \"{tokens}\" FROM raw_data WHERE cat_id = 5 LIMIT 0, 1')
+                cursor.execute(f'INSERT processed_data SELECT *, \"{tokens}\" FROM raw_data WHERE cat_id = 5 LIMIT {OFFSET+index}, 1')
 
                 conn.commit()
 
             except (MySQLdb.Error, MySQLdb.Warning) as e:
                 print(e)
+
+            finally:
+                index = index + 1
 
         cursor.execute('SET SQL_SAFE_UPDATES=1')
 
