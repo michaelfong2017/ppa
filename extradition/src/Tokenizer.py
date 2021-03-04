@@ -17,9 +17,6 @@ import jieba  # conda install -c conda-forge jieba3k
 ##
 def tokenize_and_store(item_data_msg):
     # Store data
-    item_data_tokenized_msg = ''
-    item_data_images = ''
-    item_data_links = ''
     item_data_blockquote_count = 0
     item_data_style_count = 0
 
@@ -127,7 +124,7 @@ def tokenize_and_store(item_data_msg):
     Tokenizer starts
     '''
     tokens = seg_depart(filtered_msg, stopwords_list)
-    return tokens
+    return tokens, item_data_images, item_data_links, item_data_blockquote_count, item_data_style_count
     '''
     Tokenizer ends
     '''
@@ -215,9 +212,9 @@ try:
                 row[1] is the item_data_msg. We are going to filter, extract and tokenize it,
                 and then store the results in database.
                 '''
-                tokens = tokenize_and_store(row[1])
+                tokens, item_data_images, item_data_links, item_data_blockquote_count, item_data_style_count = tokenize_and_store(row[1])
 
-                cursor.execute(f'INSERT INTO processed_data SELECT *, \"{tokens}\" FROM raw_data WHERE cat_id = 5 LIMIT {OFFSET+index}, 1')
+                cursor.execute(f'INSERT INTO processed_data SELECT *, \"{tokens}\", \"{item_data_images}\", \"{item_data_links}\", {item_data_blockquote_count}, {item_data_style_count} FROM raw_data WHERE cat_id = 5 LIMIT {OFFSET+index}, 1')
 
                 conn.commit()
 
@@ -232,3 +229,6 @@ try:
 finally:
     if conn:
         conn.close()
+
+##
+
