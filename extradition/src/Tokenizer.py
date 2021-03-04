@@ -113,7 +113,7 @@ def tokenize_and_store(item_data_msg):
     item_data_style_count = item_data_style_count + subn18[1]
 
     filtered_msg = new_msg
-    print(filtered_msg)
+    # print(filtered_msg)
     # print(item_data_images)
     # print(item_data_links)
     # print(item_data_blockquote_count)
@@ -185,8 +185,17 @@ filter_list = [line.strip() for line in open(os.path.join(
 '''
 Retrieve data from MySQL
 '''
+try:
+    user
+except NameError:
+    user = input("Enter MySQL username: ")
+try:
+    passwd
+except NameError:
+    passwd = input("Enter MySQL user password: ")
+
 conn = MySQLdb.connect(host='database-1.cfrc4kc4zmgx.ap-southeast-1.rds.amazonaws.com', db='lihkg',
-                       user=sys.argv[1], passwd=sys.argv[2], charset='utf8')
+                       user=user, passwd=passwd, charset='utf8')
 
 try:
     with conn.cursor() as cursor:
