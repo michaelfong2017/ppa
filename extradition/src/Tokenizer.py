@@ -1,13 +1,22 @@
-# %%
+##
+# import for database
 import sys
-import MySQLdb
+import MySQLdb  # conda install -c bioconda mysqlclient
 import MySQLdb.cursors
 
+# import for filter
 import re
 
-# %%
+# import for tokenize_and_store
+import os
+
+FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+import jieba  # conda install -c conda-forge jieba3k
+
+
+##
 def tokenize_and_store(item_data_msg):
-    ## Store data
+    # Store data
     item_data_tokenized_msg = ''
     item_data_images = ''
     item_data_links = ''
@@ -19,36 +28,36 @@ def tokenize_and_store(item_data_msg):
     '''
     msg = item_data_msg
 
-    ### Delete <br />
+    # Delete <br />
     new_msg = re.sub(r'<br />', r'', msg)
 
-    ### Extract imgs
+    # Extract imgs
     imgs = re.findall(r'<img\s.*?src=\"(.*?)[\"\s\n]', new_msg)
     item_data_images = '\n'.join(imgs)
 
-    ### Delete img
+    # Delete img
     new_msg = re.sub(r'<img\s(.*?)/>', r'', new_msg)
 
-    ### Extract links
+    # Extract links
     links = re.findall(r'(?<=<a\shref=\")(.*?)[\"\s\n]', new_msg)
-    ### Delete links
+    # Delete links
     new_msg = re.sub(r'<a\s(.|\n)*?</a>', r'', new_msg)
 
-    ### Extract links 2 (further extract after deleting)
+    # Extract links 2 (further extract after deleting)
     links2 = re.findall(r'(?:http|https)[a-zA-Z0-9\.\/\?\:@\-_\=#%\&]*', new_msg)
-    ### Delete links2
+    # Delete links2
 
     new_msg = re.sub(r'(?:http|https)[a-zA-Z0-9\.\/\?\:@\-_\=#%\&]*', r'', new_msg)
-    ### Extract links 3 (further extract after deleting)
+    # Extract links 3 (further extract after deleting)
     links3 = re.findall(r'(?:t.me\/)[a-zA-Z0-9\.\/\?\:@\-_\=#%\&]*', new_msg)
     item_data_links = '\n'.join(links + links2 + links3)
-    ### Delete links3
+    # Delete links3
     new_msg = re.sub(r'(?:t.me\/)[a-zA-Z0-9\.\/\?\:@\-_\=#%\&]*', r'', new_msg)
 
-    ### Delete <blockquote>, </blockquote>, <span ...>, </span>, <strong>, </strong>,
-    ### <div style=...>, <ins>, </ins>, <em>, </em>, <pre>, </pre>,
-    ### <code...>, </code>, <del>, </del>
-    ### Count </span>, </strong>, <div style=...>, </ins>, </em>, </pre>, </code>, </del>
+    # Delete <blockquote>, </blockquote>, <span ...>, </span>, <strong>, </strong>,
+    # <div style=...>, <ins>, </ins>, <em>, </em>, <pre>, </pre>,
+    # <code...>, </code>, <del>, </del>
+    # Count </span>, </strong>, <div style=...>, </ins>, </em>, </pre>, </code>, </del>
     subn1 = re.subn(r'<blockquote>', r'', new_msg)
     new_msg = subn1[0]
     subn2 = re.subn(r'</blockquote>', r'', new_msg)
@@ -117,12 +126,62 @@ def tokenize_and_store(item_data_msg):
     '''
     Tokenizer starts
     '''
-
+    tokens = seg_depart(filtered_msg, stopwords_list)
+    print(tokens)
     '''
     Tokenizer ends
     '''
 
-# %%
+
+##
+def seg_depart(sentence, stopwords_list):
+    if not isinstance(sentence, str):
+        return ''
+    #
+    # '''
+    # Filter character by character
+    #
+    # Keep space when char is symbol or space
+    # so that words will not be squeezed together
+    # '''
+    # sentence = list([char.lower() if char.isalpha() or char.isnumeric() or char == ' '
+    #                  else ' ' for char in sentence])
+    # sentence = "".join(sentence)
+
+    '''Tokenization'''
+    sentence_depart = jieba.cut(sentence.strip())
+
+    outstr = ''
+
+    for word in sentence_depart:
+        '''
+        Remove punctuations and stopwords
+        '''
+        if (word.isalpha() or word.isdigit()) and word not in stopwords_list:
+            outstr += word
+            outstr += ";"
+    return outstr
+
+
+
+## Read all dictionaries
+'''
+Load corpora (custom dictionary)
+'''
+for filename in os.listdir(os.path.join(FILE_DIR, "data/vocabulary")):
+    if filename.endswith(".txt"):
+        print(filename)
+        jieba.load_userdict(os.path.join(
+            FILE_DIR, "data/vocabulary/" + filename))
+
+## read stopwords_list.txt
+stopwords_list = [line.strip() for line in open(os.path.join(
+    FILE_DIR, "data/stopwords.txt"), 'r', encoding='UTF-8').readlines()]
+filter_list = [line.strip() for line in open(os.path.join(
+    FILE_DIR, "data/filter.txt"), 'r', encoding='UTF-8').readlines()]
+
+
+##
 '''
 Retrieve data from MySQL
 '''
@@ -146,4 +205,3 @@ try:
 finally:
     if conn:
         conn.close()
-
