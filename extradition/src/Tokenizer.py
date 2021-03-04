@@ -127,7 +127,7 @@ def tokenize_and_store(item_data_msg):
     Tokenizer starts
     '''
     tokens = seg_depart(filtered_msg, stopwords_list)
-    print(tokens)
+    return tokens
     '''
     Tokenizer ends
     '''
@@ -159,7 +159,7 @@ def seg_depart(sentence, stopwords_list):
         '''
         if (word.isalpha() or word.isdigit()) and word not in stopwords_list:
             outstr += word
-            outstr += ";"
+            outstr += "|"
     return outstr
 
 
@@ -199,18 +199,33 @@ conn = MySQLdb.connect(host='database-1.cfrc4kc4zmgx.ap-southeast-1.rds.amazonaw
 
 try:
     with conn.cursor() as cursor:
+        # For update database new columns
+        cursor.execute('SET SQL_SAFE_UPDATES=0')
 
-        cursor.execute('select item_data_msg from raw_data where cat_id = 5 LIMIT 0, 50')
+        cursor.execute('select item_data_post_id, item_data_msg from raw_data where cat_id = 5 LIMIT 0, 1')
         records = cursor.fetchall()
         for row in records:
-            '''
-            row[0] is the item_data_msg. We are going to filter, extract and tokenize it,
-            and then store the results in database.
-            '''
-            tokenize_and_store(row[0])
+            try:
+                '''
+                row[1] is the item_data_msg. We are going to filter, extract and tokenize it,
+                and then store the results in database.
+                '''
+                tokens = tokenize_and_store(row[1])
+
+                cursor.execute('INSERT processed_data SELECT *, \"{tokens}\" FROM raw_data WHERE cat_id = 5 LIMIT 0, 1')
+
+                conn.commit()
+
+            except (MySQLdb.Error, MySQLdb.Warning) as e:
+                print(e)
+
+        cursor.execute('SET SQL_SAFE_UPDATES=1')
 
         cursor.close()
 
 finally:
     if conn:
         conn.close()
+
+##
+
