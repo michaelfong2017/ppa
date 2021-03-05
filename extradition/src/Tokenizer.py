@@ -13,6 +13,27 @@ import os
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 import jieba  # conda install -c conda-forge jieba3k
 
+# import for logging
+import logging
+import datetime
+
+##
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+fh = logging.FileHandler('main.log', mode='w', encoding='utf-8')
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+LOG_EVERY = 1000  # logger.info (processing and time elapsed) every N records
+
 ##
 class Tokenizer:
 
@@ -144,16 +165,6 @@ class Tokenizer:
     def seg_depart(self, sentence, stopwords_list):
         if not isinstance(sentence, str):
             return ''
-        #
-        # '''
-        # Filter character by character
-        #
-        # Keep space when char is symbol or space
-        # so that words will not be squeezed together
-        # '''
-        # sentence = list([char.lower() if char.isalpha() or char.isnumeric() or char == ' '
-        #                  else ' ' for char in sentence])
-        # sentence = "".join(sentence)
 
         '''Tokenization'''
         sentence_depart = jieba.cut(sentence.strip())
@@ -171,19 +182,31 @@ class Tokenizer:
 
     @staticmethod
     def read_dicts():
+        """Add " 1" to the end of each vocabulary.
+        Only do once."""
+        with open(os.path.join(FILE_DIR, "data/vocabulary/extradition.txt"), "r") as f:
+            lines = f.readlines()
+        with open(os.path.join(FILE_DIR, "data/vocabulary/extradition.txt"), "w") as f:
+            f.write('\n'.join([line.rstrip("\n") + (" 1" if not line.rstrip("\n").endswith("1") else "") for line in lines]))
+
         # Read all dictionaries
         '''
         Load corpora (custom dictionary)
         '''
+        start_time = datetime.datetime.now()
+
         for filename in os.listdir(os.path.join(FILE_DIR, "data/vocabulary")):
             if filename.endswith(".txt"):
-                print(filename)
+                logger.info(f'Loading dictionary {filename}')
                 jieba.load_userdict(os.path.join(
                     FILE_DIR, "data/vocabulary/" + filename))
 
         # read stopwords_list.txt
+        logger.info(f'Loading stopwords.txt')
         Tokenizer.stopwords_list = [line.strip() for line in open(os.path.join(
             FILE_DIR, "data/stopwords.txt"), 'r', encoding='UTF-8').readlines()]
+
+        logger.info(f'Time elapsed for loading corpora: {datetime.datetime.now() - start_time}')
 
     @staticmethod
     def reset_credentials():
@@ -191,8 +214,6 @@ class Tokenizer:
         Tokenizer.passwd = None
 
     def tokenize(self):
-        print(f'NUMBER_OF_RECORDS: {self.NUMBER_OF_RECORDS}')
-        print(f'OFFSET: {self.OFFSET}')
         '''
         Retrieve data from MySQL
         '''
@@ -204,16 +225,25 @@ class Tokenizer:
         conn = MySQLdb.connect(host='database-1.cfrc4kc4zmgx.ap-southeast-1.rds.amazonaws.com', db='lihkg',
                                user=Tokenizer.user, passwd=Tokenizer.passwd, charset='utf8')
 
+        logger.info(f'NUMBER_OF_RECORDS: {self.NUMBER_OF_RECORDS}')
+        logger.info(f'OFFSET: {self.OFFSET}')
+
+        start_time = datetime.datetime.now()
+
         try:
             with conn.cursor() as cursor:
                 cursor.execute(
                     f'select item_data_post_id, item_data_msg from raw_data where cat_id = 5 LIMIT {self.OFFSET}, {self.NUMBER_OF_RECORDS}')
                 records = cursor.fetchall()
 
+                logger.info(f'Time elapsed for fetching records: {datetime.datetime.now() - start_time}')
+                start_time = datetime.datetime.now()
+                middle_time = start_time
+
                 index = 0
                 for row in records:
-                    if index % 100 == 0:
-                        print(f'Now process row with id={self.OFFSET + index + 1}')
+                    if index % LOG_EVERY == 0:
+                        logger.info(f'Processing row {self.OFFSET + index + 1}')
 
                     try:
                         '''
@@ -229,9 +259,13 @@ class Tokenizer:
                         conn.commit()
 
                     except (MySQLdb.Error, MySQLdb.Warning) as e:
-                        print(e)
+                        logger.error(f'{e} for row {self.OFFSET + index + 1}')
 
                     finally:
+                        if index % LOG_EVERY == LOG_EVERY - 1:
+                            logger.info(f'Time elapsed for processing rows {self.OFFSET + index + 1 - LOG_EVERY + 1} to {self.OFFSET + index + 1}: {datetime.datetime.now() - middle_time}')
+                            middle_time = datetime.datetime.now()
+
                         index = index + 1
 
                 cursor.close()
@@ -239,6 +273,8 @@ class Tokenizer:
         finally:
             if conn:
                 conn.close()
+
+        logger.info(f'Total time elapsed for processing rows {self.OFFSET + 1} to {self.OFFSET + self.NUMBER_OF_RECORDS}: {datetime.datetime.now() - start_time}')
 
 ##
 Tokenizer.read_dicts()
@@ -253,3 +289,6 @@ tokenizer.tokenize()
 ##
 tokenizer = Tokenizer(40, 10)
 tokenizer.tokenize()
+
+##
+
