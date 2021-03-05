@@ -186,7 +186,7 @@ class Tokenizer:
         Only do once."""
         with open(os.path.join(FILE_DIR, "data/vocabulary/extradition.txt"), "r") as f:
             lines = f.readlines()
-        with open(os.path.join(FILE_DIR, "data/vocabulary/extradition.txt"), "w") as f:
+        with open(os.path.join(FILE_DIR, "data/vocabulary/extradition.txt"), "w", encoding='UTF-8') as f:
             f.write('\n'.join([line.rstrip("\n") + (" 1" if not line.rstrip("\n").endswith("1") else "") for line in lines]))
 
         # Read all dictionaries
