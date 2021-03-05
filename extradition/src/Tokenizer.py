@@ -233,7 +233,7 @@ class Tokenizer:
         try:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    f'select item_data_post_id, item_data_msg from raw_data where cat_id = 5 LIMIT {self.OFFSET}, {self.NUMBER_OF_RECORDS}')
+                    f'select item_data_post_id, item_data_msg from raw_data LIMIT {self.OFFSET}, {self.NUMBER_OF_RECORDS}')
                 records = cursor.fetchall()
 
                 logger.info(f'Time elapsed for fetching records: {datetime.datetime.now() - start_time}')
@@ -254,7 +254,7 @@ class Tokenizer:
                             row[1])
 
                         cursor.execute(
-                            f'INSERT INTO processed_data SELECT *, \"{tokens}\", \"{item_data_images}\", \"{item_data_links}\", {item_data_blockquote_count}, {item_data_style_count} FROM raw_data WHERE cat_id = 5 LIMIT {self.OFFSET + index}, 1')
+                            f'INSERT INTO processed_data SELECT *, {self.OFFSET + index + 1}, \"{tokens}\", \"{item_data_images}\", \"{item_data_links}\", {item_data_blockquote_count}, {item_data_style_count} FROM raw_data LIMIT {self.OFFSET + index}, 1')
 
                         conn.commit()
 
