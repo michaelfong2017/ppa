@@ -134,7 +134,7 @@ id2word = corpora.Dictionary(data_lemmatized)
 '''
 Use no_above to filter stopwords, which are very frequent
 '''
-id2word.filter_extremes(no_above=0.001)
+id2word.filter_extremes(no_above=0.0025)
 
 # Create Corpus
 texts = data_lemmatized
