@@ -6,209 +6,127 @@ Created on Tue Dec 29 23:01:35 2020
 @author: michael
 """
 
-# %%
-import MySQLdb
+##
+# import for database
+import sys
+import MySQLdb  # conda install -c bioconda mysqlclient
 import MySQLdb.cursors
-import pandas as pd
+
+# import for filter
 import re
-import en_core_web_lg
-# %%
-from nltk.corpus import *
-import nltk
-import jieba
+
+# import for tokenize_and_store
+import os
+
+import jieba  # conda install -c conda-forge jieba3k
+
+# import for logging
+import logging
+import datetime
+
+# Gensim
 import gensim
 import gensim.corpora as corpora
 from gensim.utils import simple_preprocess
 from gensim.models import CoherenceModel
-from gensim import corpora, models, similarities
 
-# %%
-import os
+import pandas as pd
+
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# #%% Only called once when " 1" has not been appended in dictionary.
-# with open(os.path.join(FILE_DIR, "data/vocabulary/cantonese_dict.txt")) as f:
-#     lines = f.read().splitlines()
-# with open(os.path.join(FILE_DIR, "data/vocabulary/cantonese_dict.txt"), "w") as f:
-#     f.write('\n'.join([line + ' 1' for line in lines]))
+##
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-# #%% Only called once when stopwords.txt still includes duplicates.
-# with open(os.path.join(FILE_DIR, "data/stopwords.txt")) as f:
-#     lines = f.read().splitlines()
-# s = set(lines)
-# with open(os.path.join(FILE_DIR, "data/stopwords.txt"), "w") as f:
-#     f.write('\n'.join([line for line in list(s)]))
+if not len(logger.handlers) == 0:
+    logger.handlers.clear()
 
-# %%
-nltk.download('all-corpora')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+fh = logging.FileHandler('main.log', mode='w', encoding='utf-8')
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
-# %%
-'''
-Download NLTK corpora
-'''
-nltk_corpora = ["unicode_samples", "indian", "stopwords", "brown", "swadesh",
-                "mac_morpho", "abc", "words", "udhr2", "lin_thesaurus", "webtext",
-                "names", "sentiwordnet", "cmudict", "ptb", "inaugural", "conll2002",
-                "ieer", "problem_reports", "floresta", "sinica_treebank", "gutenberg",
-                "kimmo", "nonbreaking_prefixes", "senseval", "verbnet", "chat80",
-                "biocreative_ppi", "framenet_v17", "pil", "alpino", "omw", "cess_cat",
-                "shakespeare", "city_database", "movie_reviews", "wordnet_ic",
-                "conll2000", "dependency_treebank", "wordnet", "cess_esp", "toolbox",
-                "mte_teip5", "treebank", "rte", "nps_chat", "crubadan", "ppattach",
-                "switchboard", "brown_tei", "verbnet3", "ycoe", "timit", "pl196x",
-                "state_union", "framenet_v15", "paradigms", "genesis", "gazetteers",
-                "qc", "udhr", "dolch"]
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(formatter)
+logger.addHandler(ch)
 
-for corpus in nltk_corpora:
-    try:
-        exec("word_list = %s.words()" % corpus)
-        if not corpus == "stopwords":
-            with open(os.path.join(FILE_DIR, "data/vocabulary/nltk_"+corpus+".txt"), "w") as f:
-                f.write('\n'.join([line + " 1" for line in word_list]))
-    except:
-        print("ImportError")
+LOG_EVERY = 1000  # logger.info (processing and time elapsed) every N records
+
+##
 
 
-# %%
-'''
-Download Spacy corpora
-'''
-nlp = en_core_web_lg.load()
-with open(os.path.join(FILE_DIR, "data/vocabulary/spacy_en_core_web_lg.txt"), "w") as f:
-    f.write('\n'.join([line + " 1" for line in list(nlp.vocab.strings)]))
+class TopicModel:
+    NUMBER_OF_RECORDS = 0
+    OFFSET = 0
+    user = None
+    passwd = None
+
+    def __init__(self, number_of_records, offset):
+        self.NUMBER_OF_RECORDS = number_of_records
+        self.OFFSET = offset
+
+    @staticmethod
+    def reset_credentials():
+        TopicModel.user = None
+        TopicModel.passwd = None
+
+    def run(self):
+        """
+        Retrieve data from MySQL
+        """
+        if TopicModel.user is None:
+            TopicModel.user = input("Enter MySQL username: ")
+        if TopicModel.passwd is None:
+            TopicModel.passwd = input("Enter MySQL user password: ")
+
+        conn = MySQLdb.connect(host='localhost', db='budgetq',
+                               user=TopicModel.user, passwd=TopicModel.passwd, charset='utf8')
+
+        logger.info(f'NUMBER_OF_RECORDS: {self.NUMBER_OF_RECORDS}')
+        logger.info(f'OFFSET: {self.OFFSET}')
+
+        start_time = datetime.datetime.now()
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    f'select tokenized_question, tokenized_answer from question where id > {self.OFFSET} ORDER BY id LIMIT {self.NUMBER_OF_RECORDS}'
+                )
+                records = cursor.fetchall()
+
+                logger.info(f'Time elapsed for fetching records: {datetime.datetime.now() - start_time}')
+                start_time = datetime.datetime.now()
+
+                index = 0
+                for row in records:
+                    if index % LOG_EVERY == 0:
+                        logger.info(f'Processing row {self.OFFSET + index + 1}')
+
+                    logger.info(row)
+
+                    index = index + 1
+
+                cursor.close()
+
+        finally:
+            if conn:
+                conn.close()
+
+        logger.info(f'Total time elapsed for processing rows {self.OFFSET + 1} to {self.OFFSET + self.NUMBER_OF_RECORDS}: {datetime.datetime.now() - start_time}')
 
 
-# %%
-'''
-Load corpora (custom dictionary)
-'''
-for filename in os.listdir(os.path.join(FILE_DIR, "data/vocabulary")):
-    if filename.endswith(".txt"):
-        print(filename)
-        jieba.load_userdict(os.path.join(
-            FILE_DIR, "data/vocabulary/" + filename))
+##
+TopicModel.reset_credentials()
 
-# %%
-stopwords_list = [line.strip() for line in open(os.path.join(
-    FILE_DIR, "data/stopwords.txt"), 'r', encoding='UTF-8').readlines()]
-filter_list = [line.strip() for line in open(os.path.join(
-    FILE_DIR, "data/filter.txt"), 'r', encoding='UTF-8').readlines()]
+##
+topic_model = TopicModel(100, 10000)
+topic_model.run()
 
+##
+topic_model = TopicModel(40, 10)
+topic_model.run()
 
-# %%
+##
 
-
-def seg_depart(sentence, stopwords_list):
-    if not isinstance(value, str):
-        return ''
-
-    '''
-    Filter patterns such as <br/>, <table border="
-    '''
-    for f in filter_list:
-        sentence = re.sub(f, '', sentence)
-
-    '''
-    Filter character by character
-    
-    Keep space when char is symbol or space 
-    so that words will not be squeezed together
-    '''
-    sentence = list([char.lower() if char.isalpha() or char.isnumeric() or char == ' '
-                     else ' ' for char in sentence])
-    sentence = "".join(sentence)
-
-    '''Tokenization'''
-    sentence_depart = jieba.cut(sentence.strip())
-
-    outstr = ''
-
-    for word in sentence_depart:
-        '''
-        Remove punctuations and stopwords
-        '''
-        if (word.isalpha() or word.isdigit()) and word not in stopwords_list:
-            outstr += word
-            outstr += ";"
-    return outstr
-
-
-# %%
-
-col_list = ["id", "question", "answer"]
-df_qa = pd.read_csv(os.path.join(
-    FILE_DIR, "data/questions.csv"), sep=";", usecols=col_list)
-
-# %%
-# i = 0
-# for index, value in df_qa['question'].iteritems():
-#     if i >= 10:
-#         break
-#     # print(value)
-#     tokens = seg_depart(value, stopwords_list)
-#     print(tokens)
-#     i = i + 1
-
-# %%
-print(df_qa['question'][1])
-
-# %%
-'''Add columns in MySQL first if not done'''
-'''
-alter table budgetq.question
-add column tokenized_question text;
-alter table budgetq.question
-add column tokenized_answer text;
-'''
-
-# %%
-conn = MySQLdb.connect(host='localhost', db='budgetq',
-                       user='root', passwd='P@ssw0rd', charset='utf8')
-
-try:
-    with conn.cursor() as cursor:
-        cursor.execute('SET SQL_SAFE_UPDATES=0')
-
-        for index, value in df_qa['question'].iteritems():
-            # if index >= 100:
-            #     break
-            if index % 500 == 0:
-                print(f'Now process row with id={index+1}')
-            tokens = seg_depart(value, stopwords_list)
-
-            cursor.execute(
-                f'UPDATE question Q SET Q.tokenized_question=\"{tokens}\" WHERE Q.id=\"{index+1}\"')
-            cursor.execute('SET SQL_SAFE_UPDATES=1')
-
-            conn.commit()
-
-            i = i + 1
-
-finally:
-    conn.close()
-
-# %%
-conn = MySQLdb.connect(host='localhost', db='budgetq',
-                       user='root', passwd='P@ssw0rd', charset='utf8')
-
-try:
-    with conn.cursor() as cursor:
-        cursor.execute('SET SQL_SAFE_UPDATES=0')
-
-        for index, value in df_qa['answer'].iteritems():
-            # if index >= 100:
-            #     break
-            if index % 500 == 0:
-                print(f'Now process row with id={index+1}')
-            tokens = seg_depart(value, stopwords_list)
-
-            cursor.execute(
-                f'UPDATE question Q SET Q.tokenized_answer=\"{tokens}\" WHERE Q.id=\"{index+1}\"')
-            cursor.execute('SET SQL_SAFE_UPDATES=1')
-
-            conn.commit()
-
-            i = i + 1
-
-finally:
-    conn.close()
