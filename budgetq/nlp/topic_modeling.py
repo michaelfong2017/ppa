@@ -31,6 +31,7 @@ from gensim.utils import simple_preprocess
 from gensim.models import CoherenceModel
 
 import pandas as pd
+import numpy as np
 
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -72,7 +73,7 @@ class TopicModel:
         TopicModel.user = None
         TopicModel.passwd = None
 
-    def run(self):
+    def get_data_words_list(self):
         """
         Retrieve data from MySQL
         """
@@ -99,34 +100,28 @@ class TopicModel:
                 logger.info(f'Time elapsed for fetching records: {datetime.datetime.now() - start_time}')
                 start_time = datetime.datetime.now()
 
-                index = 0
-                for row in records:
-                    if index % LOG_EVERY == 0:
-                        logger.info(f'Processing row {self.OFFSET + index + 1}')
-
-                    logger.info(row)
-
-                    index = index + 1
-
                 cursor.close()
 
         finally:
             if conn:
                 conn.close()
 
-        logger.info(f'Total time elapsed for processing rows {self.OFFSET + 1} to {self.OFFSET + self.NUMBER_OF_RECORDS}: {datetime.datetime.now() - start_time}')
+        def format_records(q_a):
+            return [col.rstrip(';').split(';') for col in q_a]
+        data_words_list = list(map(format_records, zip(*records)))
 
+        logger.info(f'Time elapsed for formatting records {self.OFFSET + 1} to {self.OFFSET + self.NUMBER_OF_RECORDS}: {datetime.datetime.now() - start_time}')
+
+        return data_words_list
 
 ##
 TopicModel.reset_credentials()
 
 ##
-topic_model = TopicModel(100, 10000)
-topic_model.run()
+topic_model = TopicModel(100000, 0)
+data_words_list = topic_model.get_data_words_list()
+logger.info(np.shape(data_words_list))
 
 ##
-topic_model = TopicModel(40, 10)
-topic_model.run()
-
-##
-
+data_words = data_words_list[0]
+logger.info(data_words[:1])
