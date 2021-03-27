@@ -33,6 +33,8 @@ from gensim.models import CoherenceModel
 import pandas as pd
 import numpy as np
 
+from pprint import pprint
+
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 ##
@@ -123,5 +125,54 @@ data_words_list = topic_model.get_data_words_list()
 logger.info(np.shape(data_words_list))
 
 ##
-data_words = data_words_list[0]
-logger.info(data_words[:1])
+data_lemmatized = data_words_list[0]
+logger.info(data_lemmatized[:1])
+
+# Create Dictionary
+id2word = corpora.Dictionary(data_lemmatized)
+
+'''
+Use no_above to filter stopwords, which are very frequent
+'''
+id2word.filter_extremes(no_above=0.001)
+
+# Create Corpus
+texts = data_lemmatized
+
+# Term Document Frequency
+corpus = [id2word.doc2bow(text) for text in texts]
+
+# View
+logger.info(corpus[:1])
+
+##
+logger.info([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:1]])
+
+##
+# Build LDA model
+start_time = datetime.datetime.now()
+
+lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
+                                           id2word=id2word,
+                                           num_topics=20,
+                                           random_state=100,
+                                           update_every=1,
+                                           chunksize=100,
+                                           passes=10,
+                                           alpha='auto',
+                                           per_word_topics=True)
+
+logger.info(f'Time elapsed for training LDA model: {datetime.datetime.now() - start_time}')
+##
+# Print the Keyword in the 10 topics
+pprint(lda_model.print_topics())
+doc_lda = lda_model[corpus]
+
+##
+# Compute Perplexity
+print('\nPerplexity: ', lda_model.log_perplexity(corpus))  # a measure of how good the model is. lower the better.
+
+# Compute Coherence Score
+coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
+coherence_lda = coherence_model_lda.get_coherence()
+print('\nCoherence Score: ', coherence_lda)
