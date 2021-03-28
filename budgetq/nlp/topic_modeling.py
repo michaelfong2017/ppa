@@ -125,7 +125,24 @@ data_words_list = topic_model.get_data_words_list()
 logger.info(np.shape(data_words_list))
 
 ##
-data_lemmatized = data_words_list[0]
+data_words = data_words_list[0]
+# Build the bigram and trigram models
+bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100) # higher threshold fewer phrases.
+trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
+
+# Faster way to get a sentence clubbed as a trigram/bigram
+bigram_mod = gensim.models.phrases.Phraser(bigram)
+trigram_mod = gensim.models.phrases.Phraser(trigram)
+
+# See trigram example
+print(trigram_mod[bigram_mod[data_words[0]]])
+
+##
+def make_ngrams(texts):
+    return [trigram_mod[bigram_mod[doc]] for doc in texts]
+
+##
+data_lemmatized = make_ngrams(data_words)
 logger.info(data_lemmatized[:1])
 
 # Create Dictionary
@@ -134,7 +151,7 @@ id2word = corpora.Dictionary(data_lemmatized)
 '''
 Use no_above to filter stopwords, which are very frequent
 '''
-id2word.filter_extremes(no_above=0.0025)
+id2word.filter_extremes(no_above=0.005)
 
 # Create Corpus
 texts = data_lemmatized
@@ -154,18 +171,19 @@ start_time = datetime.datetime.now()
 
 lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
                                            id2word=id2word,
-                                           num_topics=20,
+                                           num_topics=25,
                                            random_state=100,
                                            update_every=1,
                                            chunksize=100,
                                            passes=10,
-                                           alpha='auto',
+                                           alpha=np.empty(25).fill(0.02),
                                            per_word_topics=True)
 
 logger.info(f'Time elapsed for training LDA model: {datetime.datetime.now() - start_time}')
 ##
-# Print the Keyword in the 10 topics
-pprint(lda_model.print_topics())
+# Print the Keyword in the 25 topics
+for i in range(25):
+    pprint(lda_model.print_topic(i))
 doc_lda = lda_model[corpus]
 
 ##
