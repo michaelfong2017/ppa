@@ -21,6 +21,9 @@ import datetime
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+if not len(logger.handlers) == 0:
+    logger.handlers.clear()
+
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 fh = logging.FileHandler('main.log', mode='w', encoding='utf-8')
 fh.setLevel(logging.DEBUG)
@@ -233,7 +236,7 @@ class Tokenizer:
         try:
             with conn.cursor() as cursor:
                 cursor.execute(
-                    f'select item_data_post_id, item_data_msg from raw_data LIMIT {self.OFFSET}, {self.NUMBER_OF_RECORDS}')
+                    f'select title, item_data_msg from processed_data WHERE row_id > {self.OFFSET} ORDER BY row_id LIMIT {self.NUMBER_OF_RECORDS}')
                 records = cursor.fetchall()
 
                 logger.info(f'Time elapsed for fetching records: {datetime.datetime.now() - start_time}')
@@ -247,14 +250,18 @@ class Tokenizer:
 
                     try:
                         '''
+                        row[0] is the title.
                         row[1] is the item_data_msg. We are going to filter, extract and tokenize it,
                         and then store the results in database.
                         '''
+                        title_tokens, _, _, _, _ = self.tokenize_and_store(
+                            row[0])
+
                         tokens, item_data_images, item_data_links, item_data_blockquote_count, item_data_style_count = self.tokenize_and_store(
                             row[1])
 
                         cursor.execute(
-                            f'INSERT INTO processed_data SELECT *, {self.OFFSET + index + 1}, \"{tokens}\", \"{item_data_images}\", \"{item_data_links}\", {item_data_blockquote_count}, {item_data_style_count} FROM raw_data LIMIT {self.OFFSET + index}, 1')
+                            f'INSERT INTO analyzed_data VALUES (\"{self.OFFSET + index + 1}\", \"{title_tokens}\", \"{tokens}\", \"{item_data_images}\", \"{item_data_links}\", {item_data_blockquote_count}, {item_data_style_count})')
 
                         conn.commit()
 
@@ -287,8 +294,11 @@ tokenizer = Tokenizer(10, 0)
 tokenizer.tokenize()
 
 ##
-tokenizer = Tokenizer(40, 10)
+tokenizer = Tokenizer(174, 5826)
 tokenizer.tokenize()
 
 ##
+for i in range(140):
+    Tokenizer(100000, 100000*i).tokenize()
 
+##
