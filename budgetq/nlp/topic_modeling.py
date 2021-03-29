@@ -151,7 +151,7 @@ id2word = corpora.Dictionary(data_lemmatized)
 '''
 Use no_above to filter stopwords, which are very frequent
 '''
-id2word.filter_extremes(no_above=0.005)
+id2word.filter_extremes(no_above=0.0015)
 
 # Create Corpus
 texts = data_lemmatized
@@ -176,7 +176,8 @@ lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
                                            update_every=1,
                                            chunksize=100,
                                            passes=10,
-                                           alpha=np.empty(25).fill(0.02),
+                                           alpha=np.empty(25).fill(0.01),
+                                           eta=np.empty(25).fill(0.01),
                                            per_word_topics=True)
 
 logger.info(f'Time elapsed for training LDA model: {datetime.datetime.now() - start_time}')
