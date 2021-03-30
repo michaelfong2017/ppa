@@ -135,11 +135,11 @@ bigram_mod = gensim.models.phrases.Phraser(bigram)
 trigram_mod = gensim.models.phrases.Phraser(trigram)
 
 # See trigram example
-print(trigram_mod[bigram_mod[data_words[0]]])
+print(bigram_mod[data_words[0]])
 
 ##
 def make_ngrams(texts):
-    return [trigram_mod[bigram_mod[doc]] for doc in texts]
+    return [bigram_mod[doc] for doc in texts]
 
 ##
 data_lemmatized = make_ngrams(data_words)
@@ -195,3 +195,15 @@ print('\nPerplexity: ', lda_model.log_perplexity(corpus))  # a measure of how go
 coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
 coherence_lda = coherence_model_lda.get_coherence()
 print('\nCoherence Score: ', coherence_lda)
+
+##
+import openpyxl
+wb = openpyxl.Workbook()
+ws_write = wb.active
+for i in range(25):
+    all_words = lda_model.print_topic(i, topn=20).split(' + ')
+    for j in range(20):
+        cell = ws_write.cell(row=i+1, column=j+1)
+        cell.value = all_words[j]
+
+wb.save(filename='topics.xlsx')
