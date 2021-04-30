@@ -125,7 +125,9 @@ data_words_list = topic_model.get_data_words_list()
 logger.info(np.shape(data_words_list))
 
 ##
-data_words = data_words_list[0]
+# Group each question and each answer together to improve the score
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0] + data_words_list[1]
 # Build the bigram and trigram models
 bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100) # higher threshold fewer phrases.
 trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
@@ -142,7 +144,7 @@ def make_ngrams(texts):
     return [bigram_mod[doc] for doc in texts]
 
 ##
-data_lemmatized = make_ngrams(data_words)
+data_lemmatized = data_words
 logger.info(data_lemmatized[:1])
 
 # Create Dictionary
@@ -151,7 +153,7 @@ id2word = corpora.Dictionary(data_lemmatized)
 '''
 Use no_above to filter stopwords, which are very frequent
 '''
-id2word.filter_extremes(no_above=0.0015)
+id2word.filter_extremes(no_above=0.005)
 
 # Create Corpus
 texts = data_lemmatized
@@ -163,7 +165,7 @@ corpus = [id2word.doc2bow(text) for text in texts]
 logger.info(corpus[:1])
 
 ##
-logger.info([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:1]])
+logger.info([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:2]])
 
 ##
 # Build LDA model
@@ -171,19 +173,19 @@ start_time = datetime.datetime.now()
 
 lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
                                            id2word=id2word,
-                                           num_topics=25,
+                                           num_topics=50,
                                            random_state=100,
                                            update_every=1,
                                            chunksize=100,
                                            passes=10,
-                                           alpha=np.empty(25).fill(0.01),
-                                           eta=np.empty(25).fill(0.01),
+                                           alpha="auto",
+                                           eta="auto",
                                            per_word_topics=True)
 
 logger.info(f'Time elapsed for training LDA model: {datetime.datetime.now() - start_time}')
 ##
-# Print the Keyword in the 25 topics
-for i in range(25):
+# Print the Keyword in the 20 topics
+for i in range(20):
     pprint(lda_model.print_topic(i))
 doc_lda = lda_model[corpus]
 
@@ -200,7 +202,7 @@ print('\nCoherence Score: ', coherence_lda)
 import openpyxl
 wb = openpyxl.Workbook()
 ws_write = wb.active
-for i in range(25):
+for i in range(20):
     all_words = lda_model.print_topic(i, topn=20).split(' + ')
     for j in range(20):
         cell = ws_write.cell(row=i+1, column=j+1)
