@@ -57,6 +57,7 @@ logger.addHandler(ch)
 
 LOG_EVERY = 1000  # logger.info (processing and time elapsed) every N records
 
+
 ##
 
 
@@ -84,7 +85,7 @@ class TopicModel:
         if TopicModel.passwd is None:
             TopicModel.passwd = input("Enter MySQL user password: ")
 
-        conn = MySQLdb.connect(host='localhost', db='budgetq',
+        conn = MySQLdb.connect(host='127.0.0.1', db='budgetq',
                                user=TopicModel.user, passwd=TopicModel.passwd, charset='utf8')
 
         logger.info(f'NUMBER_OF_RECORDS: {self.NUMBER_OF_RECORDS}')
@@ -110,11 +111,14 @@ class TopicModel:
 
         def format_records(q_a):
             return [col.rstrip(';').split(';') for col in q_a]
+
         data_words_list = list(map(format_records, zip(*records)))
 
-        logger.info(f'Time elapsed for formatting records {self.OFFSET + 1} to {self.OFFSET + self.NUMBER_OF_RECORDS}: {datetime.datetime.now() - start_time}')
+        logger.info(
+            f'Time elapsed for formatting records {self.OFFSET + 1} to {self.OFFSET + self.NUMBER_OF_RECORDS}: {datetime.datetime.now() - start_time}')
 
         return data_words_list
+
 
 ##
 TopicModel.reset_credentials()
@@ -124,88 +128,288 @@ topic_model = TopicModel(100000, 0)
 data_words_list = topic_model.get_data_words_list()
 logger.info(np.shape(data_words_list))
 
+
 ##
-# Group each question and each answer together to improve the score
+def train(data_words, use_bigram, filter_no_above, num_topics, alpha, eta, random_state, passes, save_filename, topn=20):
+    # Group each question and each answer together to improve the score
+    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+    # data_words = data_words_list[0] + data_words_list[1]
+    # Build the bigram and trigram models
+    bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100)  # higher threshold fewer phrases.
+    trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
+
+    # Faster way to get a sentence clubbed as a trigram/bigram
+    bigram_mod = gensim.models.phrases.Phraser(bigram)
+    trigram_mod = gensim.models.phrases.Phraser(trigram)
+
+    # See trigram example
+    # print(bigram_mod[data_words[0]])
+
+    #
+    if use_bigram:
+        data_lemmatized = [bigram_mod[doc] for doc in data_words]
+    else:
+        data_lemmatized = data_words
+    logger.info(data_lemmatized[:1])
+
+    # Create Dictionary
+    id2word = corpora.Dictionary(data_lemmatized)
+    '''
+    Use no_above to filter stopwords, which are very frequent
+    '''
+    id2word.filter_extremes(no_above=filter_no_above)
+
+    # Create Corpus
+    texts = data_lemmatized
+
+    # Term Document Frequency
+    corpus = [id2word.doc2bow(text) for text in texts]
+
+    # View
+    logger.info(corpus[:1])
+
+    #
+    logger.info([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:2]])
+
+    #
+    # Build LDA model
+    start_time = datetime.datetime.now()
+
+    lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
+                                                id2word=id2word,
+                                                num_topics=num_topics,
+                                                random_state=random_state,
+                                                update_every=1,
+                                                chunksize=100,
+                                                passes=passes,
+                                                # alpha=np.full(num_topics, 0.01),
+                                                # eta=np.full(num_topics, 0.01),
+                                                alpha=alpha,
+                                                eta=eta,
+                                                per_word_topics=True)
+
+    time_elapsed = datetime.datetime.now() - start_time
+    logger.info(f'Time elapsed for training LDA model: {time_elapsed}')
+    #
+    # Print the Keyword in the 20 topics
+    for i in range(20):
+        pprint(lda_model.print_topic(i))
+    doc_lda = lda_model[corpus]
+
+    #
+    # Compute Perplexity
+    print('\nPerplexity: ', lda_model.log_perplexity(corpus))  # a measure of how good the model is. lower the better.
+
+    # Compute Coherence Score
+    coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
+    coherence_lda = coherence_model_lda.get_coherence()
+    print('\nCoherence Score: ', coherence_lda)
+
+    #
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws_write = wb.active
+    for i in range(num_topics):
+        all_words = lda_model.print_topic(i, topn=topn).split(' + ')
+        for j in range(topn):
+            cell = ws_write.cell(row=i + 1, column=j + 1)
+            cell.value = all_words[j]
+
+    ws_write.cell(row=num_topics+2, column=1).value = 'Perplexity: ' + str(lda_model.log_perplexity(corpus))
+    ws_write.cell(row=num_topics+3, column=1).value = 'Coherence Score: ' + str(coherence_lda)
+
+    ws_write.cell(row=num_topics+5, column=1).value = 'Time elapsed for training LDA model: ' + str(time_elapsed)
+
+    ws_write.cell(row=num_topics+7, column=1).value = 'use_bigram: ' + str(use_bigram)
+    ws_write.cell(row=num_topics+8, column=1).value = 'filter_no_above: ' + str(filter_no_above)
+    ws_write.cell(row=num_topics+9, column=1).value = 'num_topics: ' + str(num_topics)
+    ws_write.cell(row=num_topics+10, column=1).value = 'alpha: ' + alpha.tostring() if type(alpha) is np.ndarray else str(alpha)
+    ws_write.cell(row=num_topics+11, column=1).value = 'eta: ' + eta.tostring() if type(eta) is np.ndarray else str(eta)
+    ws_write.cell(row=num_topics+12, column=1).value = 'random_state: ' + str(random_state)
+    ws_write.cell(row=num_topics+13, column=1).value = 'passes: ' + str(passes)
+    ws_write.cell(row=num_topics+14, column=1).value = 'save_filename: ' + save_filename
+
+    wb.save(filename=save_filename)
+
+
+##
+'''
+Trial 1
+'''
 # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-data_words = data_words_list[0] + data_words_list[1]
-# Build the bigram and trigram models
-bigram = gensim.models.Phrases(data_words, min_count=5, threshold=100) # higher threshold fewer phrases.
-trigram = gensim.models.Phrases(bigram[data_words], threshold=100)
-
-# Faster way to get a sentence clubbed as a trigram/bigram
-bigram_mod = gensim.models.phrases.Phraser(bigram)
-trigram_mod = gensim.models.phrases.Phraser(trigram)
-
-# See trigram example
-print(bigram_mod[data_words[0]])
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 25
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t1.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=100, passes=1, save_filename=save_filename)
 
 ##
-def make_ngrams(texts):
-    return [bigram_mod[doc] for doc in texts]
-
-##
-data_lemmatized = data_words
-logger.info(data_lemmatized[:1])
-
-# Create Dictionary
-id2word = corpora.Dictionary(data_lemmatized)
-
 '''
-Use no_above to filter stopwords, which are very frequent
+Trial 2
 '''
-id2word.filter_extremes(no_above=0.005)
-
-# Create Corpus
-texts = data_lemmatized
-
-# Term Document Frequency
-corpus = [id2word.doc2bow(text) for text in texts]
-
-# View
-logger.info(corpus[:1])
-
-##
-logger.info([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:2]])
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 25
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t2.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=1, save_filename=save_filename)
 
 ##
-# Build LDA model
-start_time = datetime.datetime.now()
-
-lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
-                                           id2word=id2word,
-                                           num_topics=50,
-                                           random_state=100,
-                                           update_every=1,
-                                           chunksize=100,
-                                           passes=10,
-                                           alpha="auto",
-                                           eta="auto",
-                                           per_word_topics=True)
-
-logger.info(f'Time elapsed for training LDA model: {datetime.datetime.now() - start_time}')
-##
-# Print the Keyword in the 20 topics
-for i in range(20):
-    pprint(lda_model.print_topic(i))
-doc_lda = lda_model[corpus]
+'''
+Trial 3
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 25
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t3.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=100, passes=2, save_filename=save_filename)
 
 ##
-# Compute Perplexity
-print('\nPerplexity: ', lda_model.log_perplexity(corpus))  # a measure of how good the model is. lower the better.
-
-# Compute Coherence Score
-coherence_model_lda = CoherenceModel(model=lda_model, texts=data_lemmatized, dictionary=id2word, coherence='c_v')
-coherence_lda = coherence_model_lda.get_coherence()
-print('\nCoherence Score: ', coherence_lda)
+'''
+Trial 4
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 25
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t4.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
 
 ##
-import openpyxl
-wb = openpyxl.Workbook()
-ws_write = wb.active
-for i in range(20):
-    all_words = lda_model.print_topic(i, topn=20).split(' + ')
-    for j in range(20):
-        cell = ws_write.cell(row=i+1, column=j+1)
-        cell.value = all_words[j]
+'''
+Trial 5
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 24
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t5.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
 
-wb.save(filename='topics.xlsx')
+##
+'''
+Trial 6
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 23
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t6.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+##
+'''
+Trial 7
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 22
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t7.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+##
+'''
+Trial 8
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 26
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t8.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+##
+'''
+Trial 9
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 27
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t9.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+##
+'''
+Trial 10
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 28
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t10.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+##
+'''
+Trial 11
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 29
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t11.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+
+##
+'''
+Trial 12
+'''
+# data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+data_words = data_words_list[0]
+use_bigram = False
+filter_no_above = 0.005
+num_topics = 30
+# [50,100,200,300,400,500,600,1000]
+alpha = "auto"
+eta = "auto"
+save_filename = 'topics_t12.xlsx'
+train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+
