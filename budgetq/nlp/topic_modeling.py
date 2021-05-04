@@ -131,7 +131,7 @@ def main():
 
 
     ##
-    def train(data_words, use_bigram, filter_no_above, num_topics, alpha, eta, random_state, passes, save_filename, topn=20):
+    def train(data_words, use_bigram, use_trigram, filter_no_above, num_topics, alpha, eta, random_state, passes, save_filename, topn=20):
         # Group each question and each answer together to improve the score
         # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
         # data_words = data_words_list[0] + data_words_list[1]
@@ -149,8 +149,11 @@ def main():
         #
         if use_bigram:
             data_lemmatized = [bigram_mod[doc] for doc in data_words]
+        elif use_trigram:
+            data_lemmatized = [trigram_mod[doc] for doc in data_words]
         else:
             data_lemmatized = data_words
+
         logger.info(data_lemmatized[:1])
 
         # Create Dictionary
@@ -223,314 +226,32 @@ def main():
         ws_write.cell(row=num_topics+5, column=1).value = 'Time elapsed for training LDA model: ' + str(time_elapsed)
 
         ws_write.cell(row=num_topics+7, column=1).value = 'use_bigram: ' + str(use_bigram)
-        ws_write.cell(row=num_topics+8, column=1).value = 'filter_no_above: ' + str(filter_no_above)
-        ws_write.cell(row=num_topics+9, column=1).value = 'num_topics: ' + str(num_topics)
-        ws_write.cell(row=num_topics+10, column=1).value = 'alpha: ' + np.array2string(alpha, formatter={'float_kind':lambda x: "%.4f" % x}) if type(alpha) is np.ndarray else str(alpha)
-        ws_write.cell(row=num_topics+11, column=1).value = 'eta: ' + np.array2string(eta, formatter={'float_kind':lambda x: "%.4f" % x}) if type(eta) is np.ndarray else str(eta)
-        ws_write.cell(row=num_topics+12, column=1).value = 'random_state: ' + str(random_state)
-        ws_write.cell(row=num_topics+13, column=1).value = 'passes: ' + str(passes)
-        ws_write.cell(row=num_topics+14, column=1).value = 'save_filename: ' + save_filename
+        ws_write.cell(row=num_topics+8, column=1).value = 'use_trigram: ' + str(use_trigram)
+        ws_write.cell(row=num_topics+9, column=1).value = 'filter_no_above: ' + str(filter_no_above)
+        ws_write.cell(row=num_topics+10, column=1).value = 'num_topics: ' + str(num_topics)
+        ws_write.cell(row=num_topics+11, column=1).value = 'alpha: ' + np.array2string(alpha, formatter={'float_kind':lambda x: "%.4f" % x}) if type(alpha) is np.ndarray else str(alpha)
+        ws_write.cell(row=num_topics+12, column=1).value = 'eta: ' + np.array2string(eta, formatter={'float_kind':lambda x: "%.4f" % x}) if type(eta) is np.ndarray else str(eta)
+        ws_write.cell(row=num_topics+13, column=1).value = 'random_state: ' + str(random_state)
+        ws_write.cell(row=num_topics+14, column=1).value = 'passes: ' + str(passes)
+        ws_write.cell(row=num_topics+15, column=1).value = 'save_filename: ' + save_filename
 
         wb.save(filename=save_filename)
 
-
     ##
     '''
-    Trial 1
+    Trial 29
     '''
     # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
     data_words = data_words_list[0]
     use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t1.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=100, passes=1, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 2
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t2.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=1, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 3
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t3.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=100, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 4
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t4.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 5
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 24
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t5.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 6
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 23
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t6.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 7
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 22
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t7.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 8
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 26
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t8.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 9
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 27
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t9.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 10
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 28
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t10.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 11
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 29
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t11.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-
-    ##
-    '''
-    Trial 12
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 30
-    # [50,100,200,300,400,500,600,1000]
-    alpha = "auto"
-    eta = "auto"
-    save_filename = 'topics_t12.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 13
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/50)
-    eta = "auto"
-    save_filename = 'topics_t13.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 14
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/100)
-    eta = "auto"
-    save_filename = 'topics_t14.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-    ##
-    '''
-    Trial 15
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
+    use_trigram = False
     filter_no_above = 0.005
     num_topics = 25
     # [50,100,200,300,400,500,600,1000]
     alpha = np.full(num_topics, 50/200)
-    eta = "auto"
-    save_filename = 'topics_t15.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 16
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/300)
-    eta = "auto"
-    save_filename = 'topics_t16.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 17
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/400)
-    eta = "auto"
-    save_filename = 'topics_t17.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 18
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/500)
-    eta = "auto"
-    save_filename = 'topics_t18.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 19
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/600)
-    eta = "auto"
-    save_filename = 'topics_t19.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
-
-    ##
-    '''
-    Trial 20
-    '''
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/1000)
-    eta = "auto"
-    save_filename = 'topics_t20.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+    eta = 'auto'
+    save_filename = 'topics_t29.xlsx'
+    train(data_words=data_words, use_bigram=use_bigram, use_trigram=use_trigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
 
 if __name__ == '__main__':
     main()
