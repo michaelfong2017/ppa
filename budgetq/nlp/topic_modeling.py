@@ -239,19 +239,24 @@ def main():
 
     ##
     '''
-    Trial 29
+    Trial 30+
     '''
+    i=0
     # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    data_words = data_words_list[0]
-    use_bigram = False
-    use_trigram = False
-    filter_no_above = 0.005
-    num_topics = 25
-    # [50,100,200,300,400,500,600,1000]
-    alpha = np.full(num_topics, 50/200)
-    eta = 'auto'
-    save_filename = 'topics_t29.xlsx'
-    train(data_words=data_words, use_bigram=use_bigram, use_trigram=use_trigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+    for fna in [0.1,0.05,0.02,0.01,0.009,0.008,0.007,0.006,0.005,0.004,0.003,
+                0.002,0.001,0.0009,0.0008,0.0007,0.0006,0.0005]:
+        data_words = data_words_list[0]
+        use_bigram = False
+        use_trigram = False
+        filter_no_above = fna
+        num_topics = 25
+        # [50,100,200,300,400,500,600,1000]
+        alpha = np.full(num_topics, 50/200)
+        eta = 'auto'
+        save_filename = 'topics_t'+str(30+i)+'.xlsx'
+        train(data_words=data_words, use_bigram=use_bigram, use_trigram=use_trigram, filter_no_above=filter_no_above, num_topics=num_topics, alpha=alpha, eta=eta, random_state=1000, passes=2, save_filename=save_filename)
+
+        i = i + 1
 
 if __name__ == '__main__':
     main()
