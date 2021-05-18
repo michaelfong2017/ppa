@@ -14,18 +14,23 @@ conda install -c conda-forge openpyxl
 
 Hyper-parameter tuning:
 num_of_topics: 22,23,24,25,26,27,28,29,30
-25 best
+25 is the best
 
 random_state: 10,100,1000,10000,100000
-1000 best
+1000 is the best
 
 passes: 1,2,...
-2 best
+2 is the best
 
 bigram/trigram/none
-none best trigram worst
+none is the best; trigram is the worst
 
 alpha: 50/[50,100,200,300,400,500,600,1000]
+alpha = 50/200 is the best
+
+filter_no_above: [0.1,0.05,0.02,0.01,0.009,0.008,0.007,0.006,0.005,0.004,0.003,
+0.002,0.001,0.0009,0.0008,0.0007,0.0006,0.0005]
+Coherence score keeps increasing from 0.435 to 0.717 as filter_no_above decreases, except that 0.05 and 0.02 are the worst
 
 num_of_topics 20 (-29.8, 0.460) better than 40 (0.405). 20-25 is okay.
 alpha, eta auto (-28.5, 0.463) better than np.empty(20).fill(0.025) (-29.8, 0.460).
@@ -44,3 +49,15 @@ Perplexity: -48.88279510049568
 Coherence Score: 0.564484125681871
 save_filename: topics_t15.xlsx
 
+## POS
+I'll use POS Tagging to remove unnecessary words
+
+import jieba.posseg as pseg
+def keep_words(s, to_keep=['ns', 'v', 'n', 'a']):
+    s_ = []
+    pos_list = pseg.lcut(s)
+    for item in pos_list:
+        if item.flag in to_keep:
+            s_.append(item.word)
+    return s_
+    keep_words('这苹果，快吃完了居然没有一个好吃的，并且都小的很，和图片严重不同！对京东太失望了，下次还是去...')
