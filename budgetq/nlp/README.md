@@ -10,6 +10,12 @@ pip install --upgrade gensim
 pip install gensim==3.4.0
 pip install smart_open==1.9.0
 conda install -c conda-forge openpyxl
+conda install -c conda-forge pandas
+```
+
+```
+conda install -c conda-forge jupyter -y
+ipython kernel install --user --name budgetq --display-name budgetq
 ```
 
 Hyper-parameter tuning:
