@@ -278,7 +278,6 @@ def main():
     Trial 30+
     """
     i = 0
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
     for fna in [
         0.1,
         # 0.05,
@@ -299,15 +298,21 @@ def main():
         # 0.0006,
         # 0.0005,
     ]:
-        data_words = data_words_list[0]
+        data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
         use_bigram = False
         use_trigram = False
         filter_no_above = fna
-        num_topics = 25
+        num_topics = 40
         # [50,100,200,300,400,500,600,1000]
-        alpha = np.full(num_topics, 50 / 200)
-        eta = "auto"
-        save_filename = f"n_{num_topics}/bi_{use_bigram}/tri_{use_trigram}/alpha_{alpha}_eta_{eta}_fna_{fna}.xlsx"
+        alpha_entry = 50 / 200
+        alpha = "auto" if alpha_entry == "auto" else np.full(num_topics, alpha_entry)
+        eta_entry = "auto"
+        eta = "auto" if eta_entry == "auto" else None
+
+        folder_path = f"output/n_{num_topics}/bi_{use_bigram}/tri_{use_trigram}/"
+        os.makedirs(folder_path, exist_ok=True)
+        save_filename = f"{folder_path}fna_{fna}_alpha_{alpha_entry}_eta_{eta_entry}.xlsx"
+
         train(
             data_words=data_words,
             use_bigram=use_bigram,
