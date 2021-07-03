@@ -24,7 +24,7 @@ from gensim import corpora, models, similarities
 
 # %%
 import os
-FILE_DIR = os.path.dirname(os.path.abspath(__file__))
+FILE_DIR = os.path.dirname(os.path.abspath('__file__'))
 
 # #%% Only called once when " 1" has not been appended in dictionary.
 # with open(os.path.join(FILE_DIR, "data/vocabulary/cantonese_dict.txt")) as f:

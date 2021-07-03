@@ -4,7 +4,7 @@ For topic modeling only:
 ```
 conda create -n budgetq_env python=3.7.10 &&
 conda activate budgetq_env &&
-conda install -c bioconda mysqlclient -y &&
+pip install psycopg2-binary &&
 conda install -c conda-forge jieba3k -y &&
 pip install --upgrade gensim
 pip install gensim==3.4.0
@@ -16,6 +16,7 @@ conda install -c conda-forge pandas
 ```
 conda install -c conda-forge jupyter -y
 ipython kernel install --user --name budgetq --display-name budgetq
+pip install black
 ```
 
 Hyper-parameter tuning:
