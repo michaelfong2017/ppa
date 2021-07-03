@@ -117,6 +117,10 @@ def setup():
     logger.info(np.shape(data_words_list))
 
 
+def load_params():
+    wb_obj = openpyxl.load_workbook("train_params.xlsx") 
+    ws = wb_obj.active
+    return [tuple(cell.value for cell in row) for row in ws.iter_rows(max_row=ws.max_row)]
 
 #
 def train(
@@ -324,6 +328,7 @@ def main():
             random_state=1000,
             passes=2,
             save_filename=save_filename,
+            topn=20,
         )
 
         i = i + 1
@@ -335,5 +340,7 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
-    main()
+    params = load_params()
+    print(params)
+    # main()
 # %%
