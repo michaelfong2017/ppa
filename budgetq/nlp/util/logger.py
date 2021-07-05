@@ -1,8 +1,6 @@
 import logging
 
 def create_logger():
-    global logger
-
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     # if not args.debug:
@@ -21,3 +19,5 @@ def create_logger():
     ch.setLevel(logging.INFO)
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+
+    return logger

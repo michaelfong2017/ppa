@@ -41,7 +41,8 @@ def setup():
     FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
     #
-    create_logger()
+    global logger
+    logger = create_logger()
 
     #
     class TopicModel:
@@ -61,14 +62,16 @@ def setup():
 
         def get_data_words_list(self):
             """
-            Retrieve data from MySQL
+            Retrieve data from PostgreSQL
             """
             if TopicModel.user is None:
                 TopicModel.user = input("Enter PostgreSQL username: ")
             if TopicModel.passwd is None:
                 TopicModel.passwd = input("Enter PostgreSQL user password: ")
 
-            conn = psycopg2.connect(f"dbname=budgetq user={TopicModel.user} host=dev.clo3yq4mhvjy.ap-east-1.rds.amazonaws.com password={TopicModel.passwd}")
+            conn = psycopg2.connect(
+                f"dbname=budgetq user={TopicModel.user} host=dev.clo3yq4mhvjy.ap-east-1.rds.amazonaws.com password={TopicModel.passwd}"
+            )
 
             if logger is not None:
                 logger.info(f"NUMBER_OF_RECORDS: {self.NUMBER_OF_RECORDS}")
@@ -118,9 +121,12 @@ def setup():
 
 
 def load_params():
-    wb_obj = openpyxl.load_workbook("train_params.xlsx") 
+    wb_obj = openpyxl.load_workbook("train_params.xlsx")
     ws = wb_obj.active
-    return [tuple(cell.value for cell in row) for row in ws.iter_rows(max_row=ws.max_row)]
+    return [
+        tuple(cell.value for cell in row) for row in ws.iter_rows(max_row=ws.max_row)
+    ]
+
 
 #
 def train(
@@ -210,8 +216,9 @@ def train(
 
     #
     # Compute Perplexity
+    perplexity_lda = lda_model.log_perplexity(corpus)
     print(
-        "\nPerplexity: ", lda_model.log_perplexity(corpus)
+        "\nPerplexity: ", perplexity_lda
     )  # a measure of how good the model is. lower the better.
 
     # Compute Coherence Score
@@ -231,7 +238,7 @@ def train(
             cell.value = all_words[j]
 
     ws_write.cell(row=num_topics + 2, column=1).value = "Perplexity: " + str(
-        lda_model.log_perplexity(corpus)
+        perplexity_lda
     )
     ws_write.cell(row=num_topics + 3, column=1).value = "Coherence Score: " + str(
         coherence_lda
@@ -241,9 +248,7 @@ def train(
         row=num_topics + 5, column=1
     ).value = "Time elapsed for training LDA model: " + str(time_elapsed)
 
-    ws_write.cell(row=num_topics + 7, column=1).value = "use_bigram: " + str(
-        use_bigram
-    )
+    ws_write.cell(row=num_topics + 7, column=1).value = "use_bigram: " + str(use_bigram)
     ws_write.cell(row=num_topics + 8, column=1).value = "use_trigram: " + str(
         use_trigram
     )
@@ -260,8 +265,7 @@ def train(
         else str(alpha)
     )
     ws_write.cell(row=num_topics + 12, column=1).value = (
-        "eta: "
-        + np.array2string(eta, formatter={"float_kind": lambda x: "%.4f" % x})
+        "eta: " + np.array2string(eta, formatter={"float_kind": lambda x: "%.4f" % x})
         if type(eta) is np.ndarray
         else str(eta)
     )
@@ -275,63 +279,83 @@ def train(
 
     wb.save(filename=save_filename)
 
+    return perplexity_lda, coherence_lda
+
+
 # %%
-def main():
-    #
-    """
-    Trial 30+
-    """
-    i = 0
-    for fna in [
-        0.1,
-        # 0.05,
-        # 0.02,
-        # 0.01,
-        # 0.009,
-        # 0.008,
-        # 0.007,
-        # 0.006,
-        # 0.005,
-        # 0.004,
-        # 0.003,
-        # 0.002,
-        # 0.001,
-        # 0.0009,
-        # 0.0008,
-        # 0.0007,
-        # 0.0006,
-        # 0.0005,
-    ]:
-        data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-        use_bigram = False
-        use_trigram = False
-        filter_no_above = fna
-        num_topics = 40
-        # [50,100,200,300,400,500,600,1000]
-        alpha_entry = 50 / 200
-        alpha = "auto" if alpha_entry == "auto" else np.full(num_topics, alpha_entry)
-        eta_entry = "auto"
-        eta = "auto" if eta_entry == "auto" else None
-
-        folder_path = f"output/n_{num_topics}/bi_{use_bigram}/tri_{use_trigram}/"
-        os.makedirs(folder_path, exist_ok=True)
-        save_filename = f"{folder_path}fna_{fna}_alpha_{alpha_entry}_eta_{eta_entry}.xlsx"
-
-        train(
-            data_words=data_words,
-            use_bigram=use_bigram,
-            use_trigram=use_trigram,
-            filter_no_above=filter_no_above,
-            num_topics=num_topics,
-            alpha=alpha,
-            eta=eta,
-            random_state=1000,
-            passes=2,
-            save_filename=save_filename,
-            topn=20,
+def train_with_params(
+    data_words_type,
+    num_topics,
+    use_bigram,
+    use_trigram,
+    filter_no_above,
+    alpha_entry,
+    eta_entry,
+    random_state,
+    passes,
+    topn,
+    data_words=None,
+):
+    if data_words == None and data_words_type == "qa":
+        data_words = list(
+            map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1]))
         )
+    # [50,100,200,300,400,500,600,1000]
+    alpha = "auto" if alpha_entry == "auto" else np.full(num_topics, alpha_entry)
+    eta = "auto" if eta_entry == "auto" else None
 
-        i = i + 1
+    folder_path = f"output/n_{num_topics}/bi_{use_bigram}/tri_{use_trigram}/"
+    os.makedirs(folder_path, exist_ok=True)
+    save_filename = (
+        f"{folder_path}fna_{filter_no_above}_alpha_{alpha_entry}_eta_{eta_entry}.xlsx"
+    )
+
+    perplexity, coherence_score = train(
+        data_words=data_words,
+        num_topics=num_topics,
+        use_bigram=use_bigram,
+        use_trigram=use_trigram,
+        filter_no_above=filter_no_above,
+        alpha=alpha,
+        eta=eta,
+        random_state=random_state,
+        passes=passes,
+        topn=topn,
+        save_filename=save_filename,
+    )
+
+    # Save results to db
+    conn = psycopg2.connect(
+        f"dbname=budgetq user={db_user} host=dev.clo3yq4mhvjy.ap-east-1.rds.amazonaws.com password={db_passwd}"
+    )
+
+    try:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    f"""INSERT INTO training ("data_words_type", "num_topics", "use_bigram", "use_trigram", "filter_no_above", "alpha_entry", "eta_entry", "random_state", "passes", "topn", "perplexity", "coherence_score") VALUES ('{data_words_type}', '{num_topics}', '{use_bigram}', '{use_trigram}', '{filter_no_above}', '{alpha_entry}', '{eta_entry}', '{random_state}', '{passes}', '{topn}', '{perplexity}', '{coherence_score}')
+                    ON CONFLICT ("data_words_type", "num_topics", "use_bigram", "use_trigram", "filter_no_above", "alpha_entry", "eta_entry", "random_state", "passes", "topn") DO UPDATE 
+                    SET "data_words_type" = '{data_words_type}', 
+                    "num_topics" = '{num_topics}',
+                    "use_bigram" = '{use_bigram}',
+                    "use_trigram" = '{use_trigram}',
+                    "filter_no_above" = '{filter_no_above}',
+                    "alpha_entry" = '{alpha_entry}',
+                    "eta_entry" = '{eta_entry}',
+                    "random_state" = '{random_state}',
+                    "passes" = '{passes}',
+                    "topn" = '{topn}',
+                    "perplexity" = '{perplexity}',
+                    "coherence_score" = '{coherence_score}';"""
+                )
+                conn.commit()
+            except Exception as e:
+                logger.error(f"{e}")
+                conn.rollback()
+                return f"{e}"
+    finally:
+        if conn:
+            conn.close()
 
 
 # %%
@@ -341,6 +365,16 @@ if __name__ == "__main__":
 # %%
 if __name__ == "__main__":
     params = load_params()
-    print(params)
-    # main()
+    print(params[0])
+    print(params[1:])
+    global db_user, db_passwd
+    db_user = input("Enter PostgreSQL username: ")
+    db_passwd = input("Enter PostgreSQL user password: ")
+
+    data_words = list(
+        map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1]))
+    )
+
+    mp_train_with_params = make_parallel(type="multiprocessing", has_different_tasks=True, has_multiple_arguments=True, max_workers=8)(train_with_params)
+    mp_train_with_params(params[1:], data_words=data_words)
 # %%

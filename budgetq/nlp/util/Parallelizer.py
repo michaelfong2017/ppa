@@ -188,7 +188,7 @@ def make_parallel(
                                 Unpack each element.
                                 """
                                 future_to_args = {
-                                    executor.submit(func, *task_args): task_args
+                                    executor.submit(func, *task_args, **kwargs): task_args
                                     for task_args in tasks_args
                                 }
                             else:
@@ -196,7 +196,7 @@ def make_parallel(
                                 Does not unpack each element.
                                 """
                                 future_to_args = {
-                                    executor.submit(func, task_args): task_args
+                                    executor.submit(func, task_args, **kwargs): task_args
                                     for task_args in tasks_args
                                 }
 
@@ -224,14 +224,14 @@ However, args[0] is not Iterable."""
                         Has a single task only. Therefore, args is directly the packed arguments for a single task
                         and args is then unpacked.
                         """
-                        future_to_args = {executor.submit(func, *args): args}
+                        future_to_args = {executor.submit(func, *args, **kwargs): args}
 
                 except IndexError as e:
                     """
                     In the case of no arguments, simply execute func.
                     i.e. func()
                     """
-                    future_to_args = {executor.submit(func): None}
+                    future_to_args = {executor.submit(func, **kwargs): None}
 
                 result = []
                 for future in cf.as_completed(future_to_args):
