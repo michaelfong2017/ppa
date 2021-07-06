@@ -329,20 +329,20 @@ def train_with_params(
     )
 
     if use_bigram:
-        lemma = data_lemmatized
+        lemma = bigram_data_lemmatized
         cor = bigram_corpus
         id2 = bigram_id2word
     elif use_trigram:
-        lemma = bigram_data_lemmatized
+        lemma = trigram_data_lemmatized
         cor = trigram_corpus
         id2 = trigram_id2word
     else:
-        lemma = trigram_data_lemmatized
+        lemma = data_lemmatized
         cor = corpus
         id2 = id2word
 
     perplexity, coherence_score = train(
-        lemma,
+        data_lemmatized=lemma,
         corpus=cor,
         id2word=id2,
         num_topics=num_topics,
@@ -353,8 +353,8 @@ def train_with_params(
         eta=eta,
         random_state=random_state,
         passes=passes,
-        topn=topn,
         save_filename=save_filename,
+        topn=topn,
     )
 
     # Save results to db
@@ -397,8 +397,6 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
-    COMPLETED_N = 7
-
     params = load_params()
     logger.info(params[0])
     logger.info(params[1])
@@ -433,6 +431,11 @@ if __name__ == "__main__":
             trigram_corpus,
             trigram_id2word,
         ) = make_corpora(data_words, current_fna)
+
+# %%
+if __name__ == "__main__":
+    COMPLETED_N = 0
+
     for i in range(len(params)):
         if i > 0 + COMPLETED_N:
             if not params[i][4] == current_fna:
