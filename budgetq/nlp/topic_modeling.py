@@ -397,6 +397,8 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
+    COMPLETED_N = 0
+
     params = load_params()
     logger.info(params[0])
     logger.info(params[1])
@@ -434,8 +436,6 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
-    COMPLETED_N = 0
-
     for i in range(len(params)):
         if i > 0 + COMPLETED_N:
             if not params[i][4] == current_fna:
