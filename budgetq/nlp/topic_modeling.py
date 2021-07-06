@@ -127,23 +127,8 @@ def load_params():
     ]
 
 
-#
-def train(
-    data_words,
-    use_bigram,
-    use_trigram,
-    filter_no_above,
-    num_topics,
-    alpha,
-    eta,
-    random_state,
-    passes,
-    save_filename,
-    topn=20,
-):
-    # Group each question and each answer together to improve the score
-    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
-    # data_words = data_words_list[0] + data_words_list[1]
+# Prevent rebuilding dictionary, which is very time-consuming.
+def make_corpora(data_words, filter_no_above):
     # Build the bigram and trigram models
     bigram = gensim.models.Phrases(
         data_words, min_count=5, threshold=100
@@ -157,35 +142,65 @@ def train(
     # See trigram example
     # print(bigram_mod[data_words[0]])
 
-    #
-    if use_bigram:
-        data_lemmatized = [bigram_mod[doc] for doc in data_words]
-    elif use_trigram:
-        data_lemmatized = [trigram_mod[doc] for doc in data_words]
-    else:
-        data_lemmatized = data_words
+    def lemmatized_to_corpus(data_lemmatized):
+        # Create Dictionary
+        id2word = corpora.Dictionary(data_lemmatized)
+        """
+        Use no_above to filter stopwords, which are very frequent
+        """
+        id2word.filter_extremes(no_above=filter_no_above)
 
-    logger.info(data_lemmatized[:1])
+        # Create Corpus
+        texts = data_lemmatized
 
-    # Create Dictionary
-    id2word = corpora.Dictionary(data_lemmatized)
-    """
-    Use no_above to filter stopwords, which are very frequent
-    """
-    id2word.filter_extremes(no_above=filter_no_above)
+        # Term Document Frequency
+        corpus = [id2word.doc2bow(text) for text in texts]
 
-    # Create Corpus
-    texts = data_lemmatized
+        # View
+        logger.info(corpus[:1])
 
-    # Term Document Frequency
-    corpus = [id2word.doc2bow(text) for text in texts]
+        #
+        logger.info([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:2]])
 
-    # View
-    logger.info(corpus[:1])
+        return corpus, id2word
 
-    #
-    logger.info([[(id2word[id], freq) for id, freq in cp] for cp in corpus[:2]])
+    data_lemmatized = data_words
+    bigram_data_lemmatized = [bigram_mod[doc] for doc in data_words]
+    trigram_data_lemmatized = [trigram_mod[doc] for doc in data_words]
 
+    corpus, id2word = lemmatized_to_corpus(data_lemmatized)
+    bigram_corpus, bigram_id2word = lemmatized_to_corpus(bigram_data_lemmatized)
+    trigram_corpus, trigram_id2word = lemmatized_to_corpus(trigram_data_lemmatized)
+
+    return (
+        data_lemmatized,
+        corpus,
+        id2word,
+        bigram_data_lemmatized,
+        bigram_corpus,
+        bigram_id2word,
+        trigram_data_lemmatized,
+        trigram_corpus,
+        trigram_id2word,
+    )
+
+
+#
+def train(
+    data_lemmatized,
+    corpus,
+    id2word,
+    use_bigram,
+    use_trigram,
+    filter_no_above,
+    num_topics,
+    alpha,
+    eta,
+    random_state,
+    passes,
+    save_filename,
+    topn=20,
+):
     #
     # Build LDA model
     start_time = datetime.datetime.now()
@@ -293,12 +308,16 @@ def train_with_params(
     random_state,
     passes,
     topn,
-    data_words=None,
+    data_lemmatized,
+    corpus,
+    id2word,
+    bigram_data_lemmatized,
+    bigram_corpus,
+    bigram_id2word,
+    trigram_data_lemmatized,
+    trigram_corpus,
+    trigram_id2word,
 ):
-    if data_words == None and data_words_type == "qa":
-        data_words = list(
-            map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1]))
-        )
     # [50,100,200,300,400,500,600,1000]
     alpha = "auto" if alpha_entry == "auto" else np.full(num_topics, alpha_entry)
     eta = "auto" if eta_entry == "auto" else None
@@ -309,8 +328,23 @@ def train_with_params(
         f"{folder_path}fna_{filter_no_above}_alpha_{alpha_entry}_eta_{eta_entry}.xlsx"
     )
 
+    if use_bigram:
+        lemma = data_lemmatized
+        cor = bigram_corpus
+        id2 = bigram_id2word
+    elif use_trigram:
+        lemma = bigram_data_lemmatized
+        cor = trigram_corpus
+        id2 = trigram_id2word
+    else:
+        lemma = trigram_data_lemmatized
+        cor = corpus
+        id2 = id2word
+
     perplexity, coherence_score = train(
-        data_words=data_words,
+        lemma,
+        corpus=cor,
+        id2word=id2,
         num_topics=num_topics,
         use_bigram=use_bigram,
         use_trigram=use_trigram,
@@ -356,12 +390,15 @@ def train_with_params(
         if conn:
             conn.close()
 
+
 # %%
 if __name__ == "__main__":
     setup()
 
 # %%
 if __name__ == "__main__":
+    COMPLETED_N = 7
+
     params = load_params()
     logger.info(params[0])
     logger.info(params[1])
@@ -370,6 +407,9 @@ if __name__ == "__main__":
     db_user = input("Enter PostgreSQL username: ")
     db_passwd = input("Enter PostgreSQL user password: ")
 
+    # Group each question and each answer together to improve the score
+    # data_words = list(map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1])))
+    # data_words = data_words_list[0] + data_words_list[1]
     data_words = list(
         map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1]))
     )
@@ -380,7 +420,45 @@ if __name__ == "__main__":
     #     has_multiple_arguments=True,
     #     max_workers=8,
     # )(train_with_params)
+    if len(params) > 1:
+        current_fna = params[1 + COMPLETED_N][4]
+        (
+            data_lemmatized,
+            corpus,
+            id2word,
+            bigram_data_lemmatized,
+            bigram_corpus,
+            bigram_id2word,
+            trigram_data_lemmatized,
+            trigram_corpus,
+            trigram_id2word,
+        ) = make_corpora(data_words, current_fna)
     for i in range(len(params)):
-        if i > 0:
-            train_with_params(*params[i], data_words=data_words)
+        if i > 0 + COMPLETED_N:
+            if not params[i][4] == current_fna:
+                current_fna = params[i][4]
+                (
+                    data_lemmatized,
+                    corpus,
+                    id2word,
+                    bigram_data_lemmatized,
+                    bigram_corpus,
+                    bigram_id2word,
+                    trigram_data_lemmatized,
+                    trigram_corpus,
+                    trigram_id2word,
+                ) = make_corpora(data_words, current_fna)
+
+            train_with_params(
+                *params[i],
+                data_lemmatized,
+                corpus,
+                id2word,
+                bigram_data_lemmatized,
+                bigram_corpus,
+                bigram_id2word,
+                trigram_data_lemmatized,
+                trigram_corpus,
+                trigram_id2word,
+            )
 # %%
