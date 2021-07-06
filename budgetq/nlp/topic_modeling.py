@@ -40,7 +40,6 @@ import openpyxl
 def setup():
     FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-    #
     global logger
     logger = create_logger()
 
@@ -51,7 +50,7 @@ def setup():
         user = None
         passwd = None
 
-        def __init__(self, number_of_records, offset, logger=None):
+        def __init__(self, number_of_records, offset):
             self.NUMBER_OF_RECORDS = number_of_records
             self.OFFSET = offset
 
@@ -114,7 +113,7 @@ def setup():
     # TopicModel.reset_credentials()
 
     #
-    topic_model = TopicModel(100000, 0, logger=logger)
+    topic_model = TopicModel(100000, 0)
     global data_words_list
     data_words_list = topic_model.get_data_words_list()
     logger.info(np.shape(data_words_list))
@@ -357,7 +356,6 @@ def train_with_params(
         if conn:
             conn.close()
 
-
 # %%
 if __name__ == "__main__":
     setup()
@@ -365,8 +363,9 @@ if __name__ == "__main__":
 # %%
 if __name__ == "__main__":
     params = load_params()
-    print(params[0])
-    print(params[1:])
+    logger.info(params[0])
+    logger.info(params[1])
+
     global db_user, db_passwd
     db_user = input("Enter PostgreSQL username: ")
     db_passwd = input("Enter PostgreSQL user password: ")
@@ -375,6 +374,13 @@ if __name__ == "__main__":
         map(lambda t: t[0] + t[1], zip(data_words_list[0], data_words_list[1]))
     )
 
-    mp_train_with_params = make_parallel(type="multiprocessing", has_different_tasks=True, has_multiple_arguments=True, max_workers=8)(train_with_params)
-    mp_train_with_params(params[1:], data_words=data_words)
+    # mp_train_with_params = make_parallel(
+    #     type="multiprocessing",
+    #     has_different_tasks=True,
+    #     has_multiple_arguments=True,
+    #     max_workers=8,
+    # )(train_with_params)
+    for i in range(len(params)):
+        if i > 0:
+            train_with_params(*params[i], data_words=data_words)
 # %%
