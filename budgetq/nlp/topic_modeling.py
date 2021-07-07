@@ -397,7 +397,7 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
-    COMPLETED_N = 36
+    COMPLETED_N = 41
 
     params = load_params()
     logger.info(params[0])
