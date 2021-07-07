@@ -205,7 +205,11 @@ def train(
     # Build LDA model
     start_time = datetime.datetime.now()
 
-    lda_model = gensim.models.ldamodel.LdaModel(
+    # Download File: http://mallet.cs.umass.edu/dist/mallet-2.0.8.zip
+    mallet_path = "mallet-2.0.8/bin/mallet"  # update this path
+
+    lda_model = gensim.models.wrappers.LdaMallet(
+        mallet_path,
         corpus=corpus,
         id2word=id2word,
         num_topics=num_topics,
@@ -251,9 +255,7 @@ def train(
             cell = ws_write.cell(row=i + 1, column=j + 1)
             cell.value = all_words[i]
 
-    ws_write.cell(row=topn + 2, column=1).value = "Perplexity: " + str(
-        perplexity_lda
-    )
+    ws_write.cell(row=topn + 2, column=1).value = "Perplexity: " + str(perplexity_lda)
     ws_write.cell(row=topn + 3, column=1).value = "Coherence Score: " + str(
         coherence_lda
     )
@@ -263,15 +265,11 @@ def train(
     ).value = "Time elapsed for training LDA model: " + str(time_elapsed)
 
     ws_write.cell(row=topn + 7, column=1).value = "use_bigram: " + str(use_bigram)
-    ws_write.cell(row=topn + 8, column=1).value = "use_trigram: " + str(
-        use_trigram
-    )
+    ws_write.cell(row=topn + 8, column=1).value = "use_trigram: " + str(use_trigram)
     ws_write.cell(row=topn + 9, column=1).value = "filter_no_above: " + str(
         filter_no_above
     )
-    ws_write.cell(row=topn + 10, column=1).value = "num_topics: " + str(
-        num_topics
-    )
+    ws_write.cell(row=topn + 10, column=1).value = "num_topics: " + str(num_topics)
     ws_write.cell(row=topn + 11, column=1).value = (
         "alpha: "
         + np.array2string(alpha, formatter={"float_kind": lambda x: "%.4f" % x})
@@ -283,13 +281,9 @@ def train(
         if type(eta) is np.ndarray
         else str(eta)
     )
-    ws_write.cell(row=topn + 13, column=1).value = "random_state: " + str(
-        random_state
-    )
+    ws_write.cell(row=topn + 13, column=1).value = "random_state: " + str(random_state)
     ws_write.cell(row=topn + 14, column=1).value = "passes: " + str(passes)
-    ws_write.cell(row=topn + 15, column=1).value = (
-        "save_filename: " + save_filename
-    )
+    ws_write.cell(row=topn + 15, column=1).value = "save_filename: " + save_filename
 
     wb.save(filename=save_filename)
 
