@@ -245,49 +245,49 @@ def train(
     #
     wb = openpyxl.Workbook()
     ws_write = wb.active
-    for i in range(num_topics):
-        all_words = lda_model.print_topic(i, topn=topn).split(" + ")
-        for j in range(topn):
+    for j in range(num_topics):
+        all_words = lda_model.print_topic(j, topn=topn).split(" + ")
+        for i in range(topn):
             cell = ws_write.cell(row=i + 1, column=j + 1)
-            cell.value = all_words[j]
+            cell.value = all_words[i]
 
-    ws_write.cell(row=num_topics + 2, column=1).value = "Perplexity: " + str(
+    ws_write.cell(row=topn + 2, column=1).value = "Perplexity: " + str(
         perplexity_lda
     )
-    ws_write.cell(row=num_topics + 3, column=1).value = "Coherence Score: " + str(
+    ws_write.cell(row=topn + 3, column=1).value = "Coherence Score: " + str(
         coherence_lda
     )
 
     ws_write.cell(
-        row=num_topics + 5, column=1
+        row=topn + 5, column=1
     ).value = "Time elapsed for training LDA model: " + str(time_elapsed)
 
-    ws_write.cell(row=num_topics + 7, column=1).value = "use_bigram: " + str(use_bigram)
-    ws_write.cell(row=num_topics + 8, column=1).value = "use_trigram: " + str(
+    ws_write.cell(row=topn + 7, column=1).value = "use_bigram: " + str(use_bigram)
+    ws_write.cell(row=topn + 8, column=1).value = "use_trigram: " + str(
         use_trigram
     )
-    ws_write.cell(row=num_topics + 9, column=1).value = "filter_no_above: " + str(
+    ws_write.cell(row=topn + 9, column=1).value = "filter_no_above: " + str(
         filter_no_above
     )
-    ws_write.cell(row=num_topics + 10, column=1).value = "num_topics: " + str(
+    ws_write.cell(row=topn + 10, column=1).value = "num_topics: " + str(
         num_topics
     )
-    ws_write.cell(row=num_topics + 11, column=1).value = (
+    ws_write.cell(row=topn + 11, column=1).value = (
         "alpha: "
         + np.array2string(alpha, formatter={"float_kind": lambda x: "%.4f" % x})
         if type(alpha) is np.ndarray
         else str(alpha)
     )
-    ws_write.cell(row=num_topics + 12, column=1).value = (
+    ws_write.cell(row=topn + 12, column=1).value = (
         "eta: " + np.array2string(eta, formatter={"float_kind": lambda x: "%.4f" % x})
         if type(eta) is np.ndarray
         else str(eta)
     )
-    ws_write.cell(row=num_topics + 13, column=1).value = "random_state: " + str(
+    ws_write.cell(row=topn + 13, column=1).value = "random_state: " + str(
         random_state
     )
-    ws_write.cell(row=num_topics + 14, column=1).value = "passes: " + str(passes)
-    ws_write.cell(row=num_topics + 15, column=1).value = (
+    ws_write.cell(row=topn + 14, column=1).value = "passes: " + str(passes)
+    ws_write.cell(row=topn + 15, column=1).value = (
         "save_filename: " + save_filename
     )
 
@@ -397,11 +397,10 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
-    COMPLETED_N = 0
+    COMPLETED_N = 36
 
     params = load_params()
     logger.info(params[0])
-    logger.info(params[1])
 
     global db_user, db_passwd
     db_user = input("Enter PostgreSQL username: ")
