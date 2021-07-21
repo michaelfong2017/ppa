@@ -322,7 +322,7 @@ def train_with_params(
     alpha = "auto" if alpha_entry == "auto" else np.full(num_topics, alpha_entry)
     eta = "auto" if eta_entry == "auto" else None
 
-    folder_path = f"output/n_{num_topics}/bi_{use_bigram}/tri_{use_trigram}/"
+    folder_path = f"output/n_{num_topics}/bi_{use_bigram}/tri_{use_trigram}/random_state_{random_state}/passes_{passes}/"
     os.makedirs(folder_path, exist_ok=True)
     save_filename = (
         f"{folder_path}fna_{filter_no_above}_alpha_{alpha_entry}_eta_{eta_entry}.xlsx"
@@ -397,7 +397,7 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
-    COMPLETED_N = 41
+    COMPLETED_N = 121
 
     params = load_params()
     logger.info(params[0])
